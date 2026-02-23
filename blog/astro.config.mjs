@@ -5,7 +5,7 @@ const GITHUB_USERNAME =
   process.env.GITHUB_REPOSITORY_OWNER ||
   process.env.GITHUB_USERNAME ||
   'jaykim';
-const REPO_NAME = 'ai-learning';
+const REPO_NAME = 'AI-LEARNING-NOTE';
 
 export default defineConfig({
   site: `https://${GITHUB_USERNAME}.github.io`,
