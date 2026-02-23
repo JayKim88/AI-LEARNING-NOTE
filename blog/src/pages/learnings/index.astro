@@ -1,0 +1,48 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PostCard from '@components/PostCard.astro';
+import { getPostsByCategory } from '@utils/posts';
+
+const posts = await getPostsByCategory('learnings');
+---
+
+<BaseLayout title="Learnings" description="AI 도구와 기술을 직접 사용하며 배운 실전 기록">
+  <h1>Learnings</h1>
+  <p class="subtitle">AI 도구와 기술을 직접 사용하며 배운 실전 기록</p>
+
+  {posts.length === 0 ? (
+    <p class="empty">아직 포스트가 없습니다.</p>
+  ) : (
+    posts.map((post) => (
+      <PostCard
+        title={post.data.title}
+        date={post.data.date}
+        description={post.data.description}
+        category={post.collection}
+        tags={post.data.tags}
+        slug={post.slug}
+        lang={post.data.lang}
+      />
+    ))
+  )}
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .empty {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 3rem 0;
+  }
+</style>

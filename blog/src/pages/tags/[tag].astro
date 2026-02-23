@@ -1,0 +1,47 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PostCard from '@components/PostCard.astro';
+import { getAllPosts, getAllTags, getPostsByTag } from '@utils/posts';
+
+export async function getStaticPaths() {
+  const posts = await getAllPosts();
+  const tags = getAllTags(posts);
+  return [...tags.keys()].map((tag) => ({
+    params: { tag },
+    props: { tag, posts: getPostsByTag(posts, tag) },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout title={`#${tag}`} description={`"${tag}" 태그가 달린 포스트`}>
+  <h1>#{tag}</h1>
+  <p class="subtitle">{posts.length}개의 포스트</p>
+
+  {posts.map((post) => (
+    <PostCard
+      title={post.data.title}
+      date={post.data.date}
+      description={post.data.description}
+      category={post.collection}
+      tags={post.data.tags}
+      slug={post.slug}
+      lang={post.data.lang}
+    />
+  ))}
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+</style>

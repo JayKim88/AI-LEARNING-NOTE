@@ -1,0 +1,48 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import PostCard from '@components/PostCard.astro';
+import { getPostsByCategory } from '@utils/posts';
+
+const posts = await getPostsByCategory('digests');
+---
+
+<BaseLayout title="Digests" description="AI 관련 아티클, 영상, 뉴스 다이제스트">
+  <h1>Digests</h1>
+  <p class="subtitle">AI 관련 아티클, 영상, 뉴스를 읽고 정리한 요약 노트</p>
+
+  {posts.length === 0 ? (
+    <p class="empty">아직 포스트가 없습니다.</p>
+  ) : (
+    posts.map((post) => (
+      <PostCard
+        title={post.data.title}
+        date={post.data.date}
+        description={post.data.description}
+        category={post.collection}
+        tags={post.data.tags}
+        slug={post.slug}
+        lang={post.data.lang}
+      />
+    ))
+  )}
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .empty {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 3rem 0;
+  }
+</style>

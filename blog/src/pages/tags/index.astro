@@ -1,0 +1,39 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import TagBadge from '@components/TagBadge.astro';
+import { getAllPosts, getAllTags } from '@utils/posts';
+
+const posts = await getAllPosts();
+const tags = getAllTags(posts);
+---
+
+<BaseLayout title="Tags" description="태그별 포스트 분류">
+  <h1>Tags</h1>
+  <p class="subtitle">{tags.size}개의 태그</p>
+
+  <div class="tag-cloud">
+    {[...tags.entries()].map(([tag, count]) => (
+      <TagBadge tag={tag} count={count} />
+    ))}
+  </div>
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .tag-cloud {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+  }
+</style>

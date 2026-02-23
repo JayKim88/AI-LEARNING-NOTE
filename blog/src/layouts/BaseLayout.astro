@@ -1,0 +1,45 @@
+---
+import SEO from '@components/SEO.astro';
+import Header from '@components/Header.astro';
+import Footer from '@components/Footer.astro';
+import '@/styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  type?: 'website' | 'article';
+  publishedDate?: Date;
+  tags?: string[];
+}
+
+const { title, description, type, publishedDate, tags } = Astro.props;
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <SEO
+      title={title}
+      description={description}
+      type={type}
+      publishedDate={publishedDate}
+      tags={tags}
+    />
+  </head>
+  <body>
+    <Header />
+    <main class="main">
+      <slot />
+    </main>
+    <Footer />
+  </body>
+</html>
+
+<style>
+  .main {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+    min-height: calc(100vh - 200px);
+  }
+</style>

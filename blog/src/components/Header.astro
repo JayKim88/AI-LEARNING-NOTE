@@ -1,0 +1,91 @@
+---
+const base = import.meta.env.BASE_URL;
+const currentPath = Astro.url.pathname;
+
+const navItems = [
+  { label: 'Home', href: base },
+  { label: 'Digests', href: `${base}digests/` },
+  { label: 'Learnings', href: `${base}learnings/` },
+  { label: 'Tags', href: `${base}tags/` },
+];
+
+function isActive(href: string): boolean {
+  if (href === base) return currentPath === base;
+  return currentPath.startsWith(href);
+}
+---
+
+<header class="header">
+  <nav class="nav">
+    <a href={base} class="site-title">AI Learning Blog</a>
+    <ul class="nav-links">
+      {navItems.map((item) => (
+        <li>
+          <a
+            href={item.href}
+            class:list={['nav-link', { active: isActive(item.href) }]}
+          >
+            {item.label}
+          </a>
+        </li>
+      ))}
+    </ul>
+  </nav>
+</header>
+
+<style>
+  .header {
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .nav {
+    max-width: var(--content-width);
+    margin: 0 auto;
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .site-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 1.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .nav-link {
+    color: var(--color-text-muted);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .nav-link:hover,
+  .nav-link.active {
+    color: var(--color-primary);
+  }
+
+  @media (max-width: 640px) {
+    .nav {
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .nav-links {
+      gap: 1rem;
+    }
+  }
+</style>

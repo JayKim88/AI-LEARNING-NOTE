@@ -1,0 +1,102 @@
+---
+import { formatDate } from '@utils/date';
+import TagBadge from './TagBadge.astro';
+
+interface Props {
+  title: string;
+  date: Date;
+  description?: string;
+  category: string;
+  tags: string[];
+  slug: string;
+  lang?: string;
+}
+
+const { title, date, description, category, tags, slug, lang } = Astro.props;
+const base = import.meta.env.BASE_URL;
+const href = `${base}${category}/${slug}/`;
+---
+
+<article class="post-card">
+  <div class="post-meta">
+    <time datetime={date.toISOString()}>{formatDate(date)}</time>
+    <span class="category-badge">{category}</span>
+    {lang === 'en' && <span class="lang-badge">EN</span>}
+  </div>
+  <h2 class="post-title">
+    <a href={href}>{title}</a>
+  </h2>
+  {description && <p class="post-description">{description}</p>}
+  {tags.length > 0 && (
+    <div class="post-tags">
+      {tags.slice(0, 5).map((tag) => (
+        <TagBadge tag={tag} />
+      ))}
+    </div>
+  )}
+</article>
+
+<style>
+  .post-card {
+    padding: 1.5rem 0;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .post-card:last-child {
+    border-bottom: none;
+  }
+
+  .post-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .category-badge {
+    background: var(--color-bg-muted);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    text-transform: capitalize;
+  }
+
+  .lang-badge {
+    background: var(--color-primary);
+    color: white;
+    padding: 0.1rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  .post-title {
+    font-size: 1.3rem;
+    margin: 0 0 0.5rem;
+    line-height: 1.4;
+  }
+
+  .post-title a {
+    color: var(--color-text);
+    text-decoration: none;
+  }
+
+  .post-title a:hover {
+    color: var(--color-primary);
+  }
+
+  .post-description {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    margin: 0 0 0.75rem;
+  }
+
+  .post-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+  }
+</style>
