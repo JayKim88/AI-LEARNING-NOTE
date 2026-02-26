@@ -1,0 +1,128 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import { getAllLogs } from '@utils/posts';
+
+const logs = await getAllLogs();
+
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+---
+
+<BaseLayout title="Logs" description="날짜별 작업 로그">
+  <h1>Logs</h1>
+  <p class="subtitle">날짜별 작업 기록</p>
+
+  {logs.length === 0 ? (
+    <p class="empty">아직 로그가 없습니다.</p>
+  ) : (
+    <ul class="log-list">
+      {logs.map((log) => (
+        <li class="log-item">
+          <a href={`${import.meta.env.BASE_URL}logs/${log.slug}/`} class="log-link">
+            <span class="log-date">{formatDate(log.data.date)}</span>
+            <span class="log-title">{log.data.title}</span>
+            {log.data.description && (
+              <span class="log-desc">{log.data.description}</span>
+            )}
+            {log.data.tags.length > 0 && (
+              <span class="log-tags">
+                {log.data.tags.map((tag) => (
+                  <span class="tag">{tag}</span>
+                ))}
+              </span>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  )}
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .empty {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 3rem 0;
+  }
+
+  .log-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .log-link {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    grid-template-rows: auto auto;
+    gap: 0.15rem 1rem;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: color 0.2s;
+  }
+
+  .log-link:hover .log-title {
+    color: var(--color-primary);
+  }
+
+  .log-date {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    padding-top: 0.2rem;
+  }
+
+  .log-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+  }
+
+  .log-desc {
+    grid-column: 2;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .log-tags {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.3rem;
+    margin-top: 0.2rem;
+  }
+
+  .tag {
+    font-size: 0.75rem;
+    background: var(--color-bg-muted);
+    color: var(--color-text-muted);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+  }
+
+  @media (max-width: 640px) {
+    .log-link {
+      grid-template-columns: 1fr;
+    }
+    .log-desc, .log-tags {
+      grid-column: 1;
+    }
+  }
+</style>

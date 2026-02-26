@@ -1,11 +1,15 @@
 ---
 import BaseLayout from '@layouts/BaseLayout.astro';
 import PostCard from '@components/PostCard.astro';
-import { getAllPosts } from '@utils/posts';
+import ActivityCalendar from '@components/ActivityCalendar.astro';
+import { getAllPosts, getAllLogs, getAllByDateMap } from '@utils/posts';
 
 const posts = await getAllPosts();
 const digestCount = posts.filter((p) => p.collection === 'digests').length;
 const learningCount = posts.filter((p) => p.collection === 'learnings').length;
+const logs = await getAllLogs();
+const logCount = logs.length;
+const dateMap = await getAllByDateMap();
 ---
 
 <BaseLayout title="AI Learning Blog" description="AI 학습과 실험 기록">
@@ -16,7 +20,13 @@ const learningCount = posts.filter((p) => p.collection === 'learnings').length;
       <span>{posts.length} posts</span>
       <span>{digestCount} digests</span>
       <span>{learningCount} learnings</span>
+      {logCount > 0 && <span>{logCount} logs</span>}
     </div>
+  </section>
+
+  <section class="activity">
+    <h2>Activity</h2>
+    <ActivityCalendar dateMap={dateMap} />
   </section>
 
   <section class="posts">
@@ -66,9 +76,16 @@ const learningCount = posts.filter((p) => p.collection === 'learnings').length;
     color: var(--color-text-muted);
   }
 
+  .activity {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .activity h2,
   .posts h2 {
     font-size: 1.3rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: 1rem;
   }
 
   @media (max-width: 640px) {

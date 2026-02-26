@@ -11,8 +11,17 @@ const postSchema = z.object({
   draft: z.boolean().default(false),
 });
 
+const logSchema = z.object({
+  title: z.string(),
+  date: z.coerce.date(),
+  description: z.string().optional(),
+  tags: z.array(z.string()).default([]),
+});
+
 const digests = defineCollection({ type: 'content', schema: postSchema });
 const learnings = defineCollection({ type: 'content', schema: postSchema });
+const logs = defineCollection({ type: 'content', schema: logSchema });
 
-export const collections = { digests, learnings };
+export const collections = { digests, learnings, logs };
 export type PostFrontmatter = z.infer<typeof postSchema>;
+export type LogFrontmatter = z.infer<typeof logSchema>;

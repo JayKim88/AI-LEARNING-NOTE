@@ -1,0 +1,722 @@
+---
+import type { ActivityEntry } from '@utils/posts';
+
+interface Props {
+  dateMap: Map<string, ActivityEntry[]>;
+}
+
+const { dateMap } = Astro.props;
+
+// ── Active years (always include current year) ───────────────
+// Use local date components to avoid UTC offset shifting the date (e.g. KST = UTC+9)
+const today = new Date();
+const todayStr = [
+  today.getFullYear(),
+  String(today.getMonth() + 1).padStart(2, '0'),
+  String(today.getDate()).padStart(2, '0'),
+].join('-');
+const currentYear = today.getFullYear();
+
+const yearsSet = new Set<number>();
+yearsSet.add(currentYear);
+for (const key of dateMap.keys()) {
+  yearsSet.add(parseInt(key.slice(0, 4)));
+}
+const activeYears = [...yearsSet].sort((a, b) => b - a);
+
+interface YearData {
+  year: number;
+  activeDates: Record<string, number>;
+}
+
+const yearsData: YearData[] = activeYears.map((year) => {
+  const activeDates: Record<string, number> = {};
+  for (const [key, entries] of dateMap.entries()) {
+    if (key.startsWith(String(year))) {
+      activeDates[key] = entries.length;
+    }
+  }
+  return { year, activeDates };
+});
+
+// ── allMonths (all-time, sorted desc) ────────────────────────
+interface MonthData {
+  key: string;   // "YYYY-MM"
+  label: string;
+  entries: ActivityEntry[];
+}
+
+const monthMap = new Map<string, ActivityEntry[]>();
+for (const dateKey of [...dateMap.keys()].sort((a, b) => b.localeCompare(a))) {
+  const mk = dateKey.slice(0, 7);
+  if (!monthMap.has(mk)) monthMap.set(mk, []);
+  monthMap.get(mk)!.push(...(dateMap.get(dateKey) ?? []));
+}
+
+const allMonths: MonthData[] = [...monthMap.entries()]
+  .sort(([a], [b]) => b.localeCompare(a))
+  .map(([key, entries]) => ({
+    key,
+    label: new Date(key + '-15T12:00:00Z').toLocaleDateString('en-US', {
+      month: 'long', year: 'numeric', timeZone: 'UTC',
+    }),
+    entries,
+  }));
+
+// ── dayMap ────────────────────────────────────────────────────
+const dayMap: Record<string, ActivityEntry[]> = {};
+for (const [key, entries] of dateMap.entries()) {
+  dayMap[key] = entries;
+}
+
+// ── Client payload ────────────────────────────────────────────
+const clientData = { yearsData, allMonths, dayMap, currentYear, todayStr };
+---
+
+<div class="cal-outer" id="cal-outer" data-cal={JSON.stringify(clientData)}>
+  <div class="cal-layout">
+    <!-- Left: graph + legend -->
+    <div class="cal-main">
+      <div class="cal-wrapper">
+        <div id="cal-graph" class="cal-graph"></div>
+      </div>
+      <div class="legend">
+        <span class="legend-label">Less</span>
+        <span class="legend-cell empty"></span>
+        <span class="legend-cell l1"></span>
+        <span class="legend-cell l2"></span>
+        <span class="legend-cell l3"></span>
+        <span class="legend-cell l4"></span>
+        <span class="legend-label">More</span>
+      </div>
+    </div>
+    <!-- Right: year selector -->
+    <div id="year-selector" class="year-selector"></div>
+  </div>
+
+  <!-- Tooltip -->
+  <div id="cal-tooltip" class="cal-tooltip" role="tooltip" aria-hidden="true"></div>
+
+  <!-- Activity section -->
+  <section class="activity-section" id="activity-section">
+    <h3 class="activity-title">Contribution activity</h3>
+    <div id="activity-list"></div>
+    <button id="show-more-btn" class="show-more-btn" type="button">Show more activity</button>
+  </section>
+</div>
+
+<script>
+  type Entry    = { title: string; url: string; collection: 'logs' | 'digests' | 'learnings' };
+  type YearData = { year: number; activeDates: Record<string, number> };
+  type MonthData = { key: string; label: string; entries: Entry[] };
+  type ClientData = {
+    yearsData:   YearData[];
+    allMonths:   MonthData[];
+    dayMap:      Record<string, Entry[]>;
+    currentYear: number;
+    todayStr:    string;
+  };
+
+  const outer     = document.getElementById('cal-outer')!;
+  const graphEl   = document.getElementById('cal-graph')!;
+  const yearSelEl = document.getElementById('year-selector')!;
+  const tooltip   = document.getElementById('cal-tooltip')!;
+  const listEl    = document.getElementById('activity-list')!;
+  const moreBtn   = document.getElementById('show-more-btn') as HTMLButtonElement;
+  const actSec    = document.getElementById('activity-section')!;
+
+  const data: ClientData = JSON.parse(outer.dataset.cal ?? '{}');
+  const { yearsData, allMonths, dayMap, currentYear, todayStr } = data;
+
+  let selectedYear    = currentYear;
+  let nextMonthCursor = 0;
+
+  // ── Ordinal ─────────────────────────────────────────────────
+  function ordinal(n: number): string {
+    if (n >= 11 && n <= 13) return `${n}th`;
+    switch (n % 10) {
+      case 1: return `${n}st`;
+      case 2: return `${n}nd`;
+      case 3: return `${n}rd`;
+      default: return `${n}th`;
+    }
+  }
+
+  // ── Intensity ────────────────────────────────────────────────
+  function iClass(count: number): string {
+    if (count < 0)   return 'future'; // padding: transparent
+    if (count === 0) return 'empty';
+    if (count === 1) return 'l1';
+    if (count === 2) return 'l2';
+    if (count === 3) return 'l3';
+    return 'l4';
+  }
+
+  // ── Render calendar grid for a year ─────────────────────────
+  function renderCalendar(year: number) {
+    const yd = yearsData.find((y) => y.year === year);
+    const activeDates = yd?.activeDates ?? {};
+
+    const jan1     = new Date(`${year}-01-01T12:00:00Z`);
+    const startDow = jan1.getUTCDay();
+    const startDate = new Date(jan1);
+    startDate.setUTCDate(jan1.getUTCDate() - startDow);
+
+    // Always render the full year; future dates shown as faint gray (non-interactive)
+    const endDate = new Date(`${year}-12-31T12:00:00Z`);
+
+    const cells: { date: string; count: number; future: boolean }[] = [];
+    const d = new Date(startDate);
+    while (d <= endDate) {
+      const key    = d.toISOString().slice(0, 10);
+      const inYear = d.getUTCFullYear() === year;
+      let count: number;
+      if (!inYear)        count = -1;  // padding before Jan 1: transparent
+      else                count = activeDates[key] ?? 0;
+      cells.push({ date: inYear ? key : '', count, future: inYear && key > todayStr });
+      d.setUTCDate(d.getUTCDate() + 1);
+    }
+    while (cells.length % 7 !== 0) cells.push({ date: '', count: -1, future: false });
+
+    const totalWeeks = cells.length / 7;
+
+    // Month label positions
+    const monthLabels: { label: string; col: number }[] = [];
+    let lastMonth = -1;
+    for (let i = 0; i < cells.length; i++) {
+      const { date } = cells[i];
+      if (!date) continue;
+      const cd = new Date(date + 'T12:00:00Z');
+      if (cd.getUTCFullYear() !== year) continue;
+      const m = cd.getUTCMonth();
+      if (m !== lastMonth) {
+        monthLabels.push({
+          label: cd.toLocaleDateString('en-US', { month: 'short', timeZone: 'UTC' }),
+          col: Math.floor(i / 7),
+        });
+        lastMonth = m;
+      }
+    }
+
+    const dayLabels = ['', 'Mon', '', 'Wed', '', 'Fri', ''];
+
+    const dayLabelsHtml = dayLabels
+      .map((l) => `<span class="day-label">${l}</span>`)
+      .join('');
+
+    const monthRowHtml = Array.from({ length: totalWeeks }, (_, i) => {
+      const found = monthLabels.find((m) => m.col === i);
+      return `<span class="month-label">${found ? found.label : ''}</span>`;
+    }).join('');
+
+    const cellsHtml = cells
+      .map(({ date, count, future }) => {
+        if (!date) return `<div class="cell future"></div>`;
+        if (future) return `<div class="cell empty" data-date="${date}" data-count="0" data-future="true"></div>`;
+        return `<div class="cell ${iClass(count)}" data-date="${date}" data-count="${count}"></div>`;
+      })
+      .join('');
+
+    // grid-template-columns must be explicit to prevent flex-stretch from breaking column count
+    graphEl.innerHTML = `
+      <div class="calendar">
+        <div class="day-labels">${dayLabelsHtml}</div>
+        <div class="graph-area">
+          <div class="month-row" style="grid-template-columns: repeat(${totalWeeks}, 13px);">${monthRowHtml}</div>
+          <div class="grid" style="grid-template-columns: repeat(${totalWeeks}, 13px);">${cellsHtml}</div>
+        </div>
+      </div>`;
+  }
+
+  // ── Render year buttons ──────────────────────────────────────
+  function renderYearButtons() {
+    yearSelEl.innerHTML = yearsData
+      .map(({ year }) =>
+        `<button class="year-btn${year === selectedYear ? ' active' : ''}" data-year="${year}" type="button">${year}</button>`
+      )
+      .join('');
+    yearSelEl.querySelectorAll<HTMLButtonElement>('.year-btn').forEach((btn) => {
+      btn.addEventListener('click', () => selectYear(parseInt(btn.dataset.year!)));
+    });
+  }
+
+  // ── Select year ──────────────────────────────────────────────
+  function selectYear(year: number) {
+    selectedYear = year;
+    renderCalendar(year);
+    yearSelEl.querySelectorAll<HTMLElement>('.year-btn').forEach((btn) => {
+      btn.classList.toggle('active', parseInt(btn.dataset.year!) === year);
+    });
+    resetActivityForYear(year);
+  }
+
+  function resetActivityForYear(year: number) {
+    const yearMonths = allMonths.filter((m) => m.key.startsWith(String(year)));
+    if (yearMonths.length === 0) {
+      nextMonthCursor = 0;
+      listEl.innerHTML = '<p class="no-activity">No activity this year.</p>';
+      moreBtn.style.display = 'none';
+      return;
+    }
+    const first = yearMonths[0];
+    const idx   = allMonths.findIndex((m) => m.key === first.key);
+    nextMonthCursor = idx + 1;
+    listEl.innerHTML = renderMonthBlock(first);
+    updateMoreBtn();
+  }
+
+  // ── Entry helpers ────────────────────────────────────────────
+  const COL_ORDER  = ['digests', 'learnings', 'logs'] as const;
+  const COL_LABELS: Record<string, string> = {
+    digests: 'Digests', learnings: 'Learnings', logs: 'Logs',
+  };
+
+  function renderEntries(entries: Entry[]): string {
+    const groups: Record<string, Entry[]> = { digests: [], learnings: [], logs: [] };
+    for (const e of entries) groups[e.collection].push(e);
+    return COL_ORDER
+      .filter((c) => groups[c].length > 0)
+      .map(
+        (col) => `
+        <div class="col-section">
+          <h4 class="col-title">${COL_LABELS[col]}</h4>
+          <ul class="col-list">
+            ${groups[col].map((e) => `<li><a href="${e.url}">${e.title}</a></li>`).join('')}
+          </ul>
+        </div>`
+      )
+      .join('');
+  }
+
+  function renderDayBlock(date: string, entries: Entry[]): string {
+    const d     = new Date(date + 'T12:00:00Z');
+    const month = d.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+    const label = `${month} ${ordinal(d.getUTCDate())}, ${d.getUTCFullYear()}`;
+    const body  = entries.length === 0
+      ? '<p class="no-activity">No contributions on this day.</p>'
+      : renderEntries(entries);
+    return `
+      <div class="month-box">
+        <div class="month-header">
+          <span class="month-name">${label}</span>
+          <span class="month-line"></span>
+        </div>
+        <div class="month-body">${body}</div>
+      </div>`;
+  }
+
+  function renderMonthBlock(m: MonthData): string {
+    const body = m.entries.length === 0
+      ? '<p class="no-activity">No activity this month.</p>'
+      : renderEntries(m.entries);
+    return `
+      <div class="month-box" data-month-key="${m.key}">
+        <div class="month-header">
+          <span class="month-name">${m.label}</span>
+          <span class="month-line"></span>
+        </div>
+        <div class="month-body">${body}</div>
+      </div>`;
+  }
+
+  function updateMoreBtn() {
+    moreBtn.style.display = nextMonthCursor >= allMonths.length ? 'none' : '';
+  }
+
+  // ── Show more ─────────────────────────────────────────────────
+  moreBtn.addEventListener('click', () => {
+    if (nextMonthCursor >= allMonths.length) return;
+    const m   = allMonths[nextMonthCursor++];
+    const div = document.createElement('div');
+    div.innerHTML = renderMonthBlock(m);
+    const box = div.firstElementChild;
+    if (box) {
+      listEl.appendChild(box);
+      box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+    updateMoreBtn();
+  });
+
+  // ── Tooltip ───────────────────────────────────────────────────
+  let hideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showTooltip(cell: HTMLElement) {
+    const count  = parseInt(cell.dataset.count!);
+    const date   = cell.dataset.date!;
+    const d      = new Date(date + 'T12:00:00Z');
+    const month  = d.toLocaleDateString('en-US', { month: 'long', timeZone: 'UTC' });
+    const noun   = count === 1 ? 'contribution' : 'contributions';
+    tooltip.textContent = count === 0
+      ? `No contributions on ${month} ${ordinal(d.getUTCDate())}.`
+      : `${count} ${noun} on ${month} ${ordinal(d.getUTCDate())}.`;
+
+    tooltip.style.visibility = 'hidden';
+    tooltip.style.display    = 'block';
+    const ttRect   = tooltip.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    let left = cellRect.left + cellRect.width / 2 - ttRect.width / 2;
+    let top  = cellRect.top - ttRect.height - 8;
+    left = Math.max(4, Math.min(left, window.innerWidth - ttRect.width - 4));
+    if (top < 4) top = cellRect.bottom + 8;
+    tooltip.style.left       = `${left}px`;
+    tooltip.style.top        = `${top}px`;
+    tooltip.style.visibility = 'visible';
+  }
+
+  function scheduleHide() {
+    hideTimer = setTimeout(() => { tooltip.style.display = 'none'; }, 120);
+  }
+  function cancelHide() {
+    if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+  }
+
+  graphEl.addEventListener('mouseover', (e) => {
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('.cell');
+    if (!cell?.dataset.date) return;
+    cancelHide();
+    showTooltip(cell);
+  });
+
+  graphEl.addEventListener('mouseout', (e) => {
+    const from = (e.target as HTMLElement).closest('.cell');
+    if (!from) return;
+    const to = (e as MouseEvent).relatedTarget as HTMLElement | null;
+    if (to?.closest?.('.cell') || to?.closest?.('#cal-tooltip')) return;
+    scheduleHide();
+  });
+
+  tooltip.addEventListener('mouseenter', cancelHide);
+  tooltip.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+  // ── Cell click → show day detail ─────────────────────────────
+  graphEl.addEventListener('click', (e) => {
+    const cell = (e.target as HTMLElement).closest<HTMLElement>('.cell');
+    if (!cell?.dataset.date || cell.dataset.future) return;
+
+    const date     = cell.dataset.date!;
+    const entries  = dayMap[date] ?? [];
+    const monthKey = date.slice(0, 7);
+    const monthIdx = allMonths.findIndex((m) => m.key === monthKey);
+    nextMonthCursor = monthIdx !== -1 ? monthIdx + 1 : 0;
+
+    listEl.innerHTML = renderDayBlock(date, entries);
+    updateMoreBtn();
+    actSec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+
+  // ── Init ──────────────────────────────────────────────────────
+  renderCalendar(selectedYear);
+  renderYearButtons();
+  resetActivityForYear(selectedYear);
+</script>
+
+<style is:global>
+  /* ── Outer layout ─────────────────────────────────────────── */
+  .cal-outer {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .cal-layout {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .cal-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .cal-wrapper {
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  /* ── Year selector ────────────────────────────────────────── */
+  .year-selector {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+    flex-shrink: 0;
+    padding-top: 20px; /* align with graph top (below month labels) */
+  }
+
+  .year-btn {
+    padding: 0.2rem 0.65rem;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: none;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    white-space: nowrap;
+    line-height: 1.6;
+  }
+
+  .year-btn:hover {
+    background: var(--color-bg-muted);
+    color: var(--color-text);
+  }
+
+  .year-btn.active {
+    background: var(--color-primary, #3b82f6);
+    color: #fff;
+    border-color: transparent;
+  }
+
+  /* ── Calendar ─────────────────────────────────────────────── */
+  .cal-graph {
+    min-height: 130px;
+  }
+
+  .calendar {
+    display: flex;
+    gap: 4px;
+    align-items: flex-start;
+    min-width: max-content;
+  }
+
+  .day-labels {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    gap: 2px;
+    padding-top: 20px; /* month-row height (18px) + gap (2px) */
+    flex-shrink: 0;
+  }
+
+  .day-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    line-height: 13px;
+    text-align: right;
+    width: 28px;
+  }
+
+  .graph-area {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    align-items: flex-start; /* prevent flex from stretching children to container width */
+  }
+
+  .month-row {
+    display: grid;
+    gap: 2px;
+    height: 18px;
+    align-items: flex-end;
+  }
+
+  .month-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: visible;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-rows: repeat(7, 13px);
+    grid-auto-flow: column;
+    grid-auto-columns: 13px;
+    gap: 2px;
+  }
+
+  /* ── Cells ───────────────────────────────────────────────── */
+  .cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 2px;
+    cursor: pointer;
+    outline: 2px solid transparent;
+    outline-offset: 0;
+    transition: outline-color 0.05s;
+  }
+
+  .cell.future          { background: transparent; cursor: default; }
+  .cell.empty           { background: var(--color-bg-muted, #ebedf0); }
+  .cell[data-future]    { cursor: default; }
+  .cell.l1       { background: #9be9a8; }
+  .cell.l2       { background: #40c463; }
+  .cell.l3       { background: #30a14e; }
+  .cell.l4       { background: #216e39; }
+
+  .cell:not(.future):hover { outline-color: rgba(0,0,0,0.3); }
+
+  /* ── Legend ──────────────────────────────────────────────── */
+  .legend {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    margin-top: 6px;
+    justify-content: flex-end;
+  }
+
+  .legend-label {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+  }
+
+  .legend-cell {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+  }
+
+  .legend-cell.empty { background: var(--color-bg-muted, #ebedf0); }
+  .legend-cell.l1    { background: #9be9a8; }
+  .legend-cell.l2    { background: #40c463; }
+  .legend-cell.l3    { background: #30a14e; }
+  .legend-cell.l4    { background: #216e39; }
+
+  /* ── Tooltip ─────────────────────────────────────────────── */
+  .cal-tooltip {
+    display: none;
+    position: fixed;
+    background: #1b1f23;
+    color: #f0f6fc;
+    font-size: 0.72rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+    z-index: 200;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  }
+
+  /* ── Activity section ────────────────────────────────────── */
+  .activity-section {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .activity-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 1.25rem;
+  }
+
+  /* ── Month / Day box ─────────────────────────────────────── */
+  .month-box {
+    margin-bottom: 1.5rem;
+    border-radius: 6px;
+  }
+
+  .month-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .month-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .month-line {
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+
+  .month-body {
+    padding-left: 0.25rem;
+  }
+
+  /* ── Per-collection sections ─────────────────────────────── */
+  .col-section {
+    margin-bottom: 0.625rem;
+  }
+
+  .col-title {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-muted);
+    margin: 0 0 0.3rem;
+  }
+
+  .col-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+
+  .col-list li {
+    display: flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    font-size: 0.875rem;
+  }
+
+  .col-list li::before {
+    content: '·';
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+  }
+
+  .col-list a {
+    color: var(--color-primary, #3b82f6);
+    text-decoration: none;
+  }
+
+  .col-list a:hover {
+    text-decoration: underline;
+  }
+
+  .no-activity {
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+    margin: 0;
+  }
+
+  /* ── Show more button ────────────────────────────────────── */
+  .show-more-btn {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 1rem;
+    background: none;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s, color 0.1s;
+    margin-top: 0.25rem;
+  }
+
+  .show-more-btn:hover {
+    background: var(--color-bg-muted);
+    border-color: currentColor;
+    color: var(--color-text);
+  }
+
+  /* ── Responsive ──────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .cal-layout {
+      flex-direction: column;
+    }
+
+    .cal-main {
+      width: 100%;
+    }
+
+    .year-selector {
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding-top: 0;
+      gap: 0.35rem;
+    }
+  }
+</style>

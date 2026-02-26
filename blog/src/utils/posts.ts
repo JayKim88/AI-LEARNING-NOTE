@@ -1,6 +1,7 @@
 import { getCollection, type CollectionEntry } from 'astro:content';
 
 export type Post = CollectionEntry<'digests'> | CollectionEntry<'learnings'>;
+export type LogEntry = CollectionEntry<'logs'>;
 
 export async function getAllPosts(): Promise<Post[]> {
   const [digests, learnings] = await Promise.all([
@@ -44,4 +45,58 @@ export function getAdjacentPosts(
     prev: index < posts.length - 1 ? posts[index + 1] : null,
     next: index > 0 ? posts[index - 1] : null,
   };
+}
+
+export async function getAllLogs(): Promise<LogEntry[]> {
+  const logs = await getCollection('logs');
+  return logs.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());
+}
+
+// Returns a map of "YYYY-MM-DD" -> LogEntry[]
+export async function getLogsByDateMap(): Promise<Map<string, LogEntry[]>> {
+  const logs = await getAllLogs();
+  const dateMap = new Map<string, LogEntry[]>();
+  for (const log of logs) {
+    const key = log.data.date.toISOString().slice(0, 10);
+    const existing = dateMap.get(key) ?? [];
+    dateMap.set(key, [...existing, log]);
+  }
+  return dateMap;
+}
+
+export interface ActivityEntry {
+  title: string;
+  url: string;
+  collection: 'logs' | 'digests' | 'learnings';
+}
+
+// Returns a map of "YYYY-MM-DD" -> ActivityEntry[] across all collections
+export async function getAllByDateMap(): Promise<Map<string, ActivityEntry[]>> {
+  const base = import.meta.env.BASE_URL;
+  const [logs, digests, learnings] = await Promise.all([
+    getCollection('logs'),
+    getCollection('digests'),
+    getCollection('learnings'),
+  ]);
+
+  const map = new Map<string, ActivityEntry[]>();
+
+  const addToMap = (
+    entries: CollectionEntry<'logs' | 'digests' | 'learnings'>[],
+    prefix: string,
+    collection: 'logs' | 'digests' | 'learnings',
+  ) => {
+    for (const e of entries) {
+      if ((e.data as { draft?: boolean }).draft) continue;
+      const key = e.data.date.toISOString().slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push({ title: e.data.title, url: `${base}${prefix}/${e.slug}/`, collection });
+    }
+  };
+
+  addToMap(logs, 'logs', 'logs');
+  addToMap(digests, 'digests', 'digests');
+  addToMap(learnings, 'learnings', 'learnings');
+
+  return map;
 }
