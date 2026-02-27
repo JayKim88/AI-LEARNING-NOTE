@@ -8,14 +8,9 @@ interface Props {
 const { dateMap } = Astro.props;
 
 // ── Active years (always include current year) ───────────────
-// Use local date components to avoid UTC offset shifting the date (e.g. KST = UTC+9)
-const today = new Date();
-const todayStr = [
-  today.getFullYear(),
-  String(today.getMonth() + 1).padStart(2, '0'),
-  String(today.getDate()).padStart(2, '0'),
-].join('-');
-const currentYear = today.getFullYear();
+// currentYear is baked at build time (UTC). todayStr is computed client-side
+// to avoid timezone mismatch (e.g. KST build = UTC-1 day).
+const currentYear = new Date().getUTCFullYear();
 
 const yearsSet = new Set<number>();
 yearsSet.add(currentYear);
@@ -70,7 +65,7 @@ for (const [key, entries] of dateMap.entries()) {
 }
 
 // ── Client payload ────────────────────────────────────────────
-const clientData = { yearsData, allMonths, dayMap, currentYear, todayStr };
+const clientData = { yearsData, allMonths, dayMap, currentYear };
 ---
 
 <div class="cal-outer" id="cal-outer" data-cal={JSON.stringify(clientData)}>
@@ -114,7 +109,6 @@ const clientData = { yearsData, allMonths, dayMap, currentYear, todayStr };
     allMonths:   MonthData[];
     dayMap:      Record<string, Entry[]>;
     currentYear: number;
-    todayStr:    string;
   };
 
   const outer     = document.getElementById('cal-outer')!;
@@ -126,7 +120,16 @@ const clientData = { yearsData, allMonths, dayMap, currentYear, todayStr };
   const actSec    = document.getElementById('activity-section')!;
 
   const data: ClientData = JSON.parse(outer.dataset.cal ?? '{}');
-  const { yearsData, allMonths, dayMap, currentYear, todayStr } = data;
+  const { yearsData, allMonths, dayMap, currentYear } = data;
+
+  // Compute todayStr on the client so it reflects the user's local timezone,
+  // not the build server's UTC time (which can differ by ±1 day).
+  const _today = new Date();
+  const todayStr = [
+    _today.getFullYear(),
+    String(_today.getMonth() + 1).padStart(2, '0'),
+    String(_today.getDate()).padStart(2, '0'),
+  ].join('-');
 
   let selectedYear    = currentYear;
   let nextMonthCursor = 0;
