@@ -1,143 +1,142 @@
 ---
-title: "RAG 아키텍처 기초 — pgvector, FastAPI, SSE Streaming, 임베딩 모델"
+title: "RAG Architecture Fundamentals — pgvector, FastAPI, SSE Streaming, and Embedding Models"
 date: 2026-02-25
-description: "LinguaRAG 기획 과정에서 이해한 RAG 핵심 개념: 오프라인/온라인 단계 분리, SSE Streaming 동작 원리, 프롬프트 조합, pgvector 역할."
+description: "Core RAG concepts understood while planning LinguaRAG: offline/online phase separation, SSE streaming mechanics, prompt assembly, and the role of pgvector."
 category: learnings
 tags: ["rag", "fastapi", "sse-streaming", "pgvector", "embedding", "claude-api", "llm"]
-lang: ko
 draft: false
 ---
 
 ## Key Concepts
 
-### RAG의 두 단계: 오프라인 vs 온라인
+### RAG's Two Phases: Offline vs Online
 
-RAG(Retrieval-Augmented Generation)의 핵심은 **"무거운 작업은 1회만, 질문 응답은 가볍게"** 다.
+The core idea of RAG (Retrieval-Augmented Generation) is **"heavy work once, question answering lightweight"**.
 
-**오프라인 단계** (PDF 업로드 시 1회만 실행):
+**Offline phase** (runs once on PDF upload):
 ```
-PDF 업로드
-  → 텍스트 추출 (pdfplumber)
-  → 청크 분할 (500-800 token)
-  → 임베딩 생성 (텍스트 → 숫자 벡터)
-  → pgvector 저장
-⏱ ~30-60초, ~$0.05 (일회성)
-```
-
-**온라인 단계** (유저 질문마다 실행):
-```
-유저 질문
-  → 질문 임베딩
-  → pgvector 유사도 검색 (Top-K=3 청크)
-  → 프롬프트 조합 (시스템 프롬프트 + 청크 + 히스토리 + 질문)
-  → Claude API 스트리밍 호출
-  → 답변 반환
-⏱ 첫 토큰 < 2초, ~$0.01-0.03/질문
+PDF upload
+  → text extraction (pdfplumber)
+  → chunk splitting (500-800 tokens)
+  → embedding generation (text → numeric vector)
+  → pgvector storage
+⏱ ~30-60s, ~$0.05 (one-time cost)
 ```
 
-### 임베딩(Embedding)
+**Online phase** (runs on every user question):
+```
+User question
+  → question embedding
+  → pgvector similarity search (Top-K=3 chunks)
+  → prompt assembly (system prompt + chunks + history + question)
+  → Claude API streaming call
+  → return answer
+⏱ first token < 2s, ~$0.01-0.03/question
+```
 
-텍스트를 숫자 벡터로 변환하는 것. 의미가 비슷한 텍스트는 벡터값도 가까움.
+### Embeddings
+
+Converting text into numeric vectors. Text with similar meaning produces vectors that are numerically close.
 
 ```
 "약속을 잡을 때 뭐라고 해요?" → [0.12, -0.87, 0.34, ...]
 "Wann passt es dir?"         → [0.11, -0.85, 0.36, ...]
-                                  ↑ 숫자들이 가까움 = 의미 유사
+                                  ↑ numbers are close = semantically similar
 ```
 
-- **Claude/GPT**: 텍스트 → 텍스트 (이해하고 생성)
-- **임베딩 모델**: 텍스트 → 숫자 벡터 (의미 수치화만, 생성 없음) → 훨씬 저렴
+- **Claude/GPT**: text → text (understands and generates)
+- **Embedding model**: text → numeric vector (only quantifies meaning, no generation) → much cheaper
 
 ### pgvector
 
-PostgreSQL 확장(extension). `CREATE EXTENSION vector;` 한 줄로 기존 PostgreSQL이 벡터 유사도 검색 DB가 됨.
+A PostgreSQL extension. A single `CREATE EXTENSION vector;` turns an existing PostgreSQL instance into a vector similarity search database.
 
 ```sql
--- 유사도 검색 (cosine similarity)
+-- similarity search (cosine similarity)
 SELECT content FROM chunks
 WHERE unit_id = 'A1-13'
-ORDER BY embedding <=> $1  -- $1 = 질문 벡터
+ORDER BY embedding <=> $1  -- $1 = question vector
 LIMIT 3;
 ```
 
-벡터 DB 전용 서비스(Pinecone, Weaviate) 없이 기존 PostgreSQL 그대로 활용 가능.
+No need for dedicated vector DB services (Pinecone, Weaviate) — works directly on existing PostgreSQL.
 
 ### SSE (Server-Sent Events) Streaming
 
-서버가 클라이언트에게 단방향으로 데이터를 실시간 푸시하는 기술. ChatGPT가 타이핑하듯 답변이 나오는 방식.
+A technology for the server to push data to the client in real time, unidirectionally. This is how ChatGPT delivers answers as if typing.
 
 ```
-[일반 HTTP]: 서버가 전체 응답 완성 후 한 번에 전달
-[SSE]:       토큰 단위로 실시간 전달 → 첫 토큰 < 2초
+[Regular HTTP]: server completes the full response, then delivers all at once
+[SSE]:          delivers token by token in real time → first token < 2s
 
-서버가 보내는 원시 데이터:
+Raw data sent by the server:
 data: {"type": "token", "content": "Akkusativ"}
 data: {"type": "token", "content": "는"}
 ...
 data: [DONE]
 ```
 
-WebSocket 대신 SSE를 쓰는 이유: LLM 응답은 "서버→클라이언트" 단방향이라 SSE로 충분. 구현이 단순하고 재연결이 자동.
+Why SSE instead of WebSocket: LLM responses flow in one direction — server to client — so SSE is sufficient. Implementation is simpler and reconnection is automatic.
 
-### 프롬프트 조합 (Prompt Assembly)
+### Prompt Assembly
 
-Claude에게 보내는 메시지를 여러 조각으로 합치는 서버 작업.
+The server-side task of combining multiple pieces into the message sent to Claude.
 
 ```python
 client.messages.create(
-    system=system_prompt,    # ① 역할 + 레벨 + 단원 컨텍스트 (서버에서 빌드)
+    system=system_prompt,    # ① role + level + unit context (built on the server)
     messages=[
-        *history,            # ② DB에서 조회한 최근 10개 메시지
+        *history,            # ② last 10 messages fetched from DB
         {"role": "user",
-         "content": "Akkusativ가 뭐예요?"}  # ③ 유저 입력
+         "content": "What is Akkusativ?"}  # ③ user input
     ]
 )
 ```
 
-서버(FastAPI)에서 조합하는 이유: API 키 노출 방지, DB 접근, 시스템 프롬프트 숨김.
+Why assembly happens on the server (FastAPI): prevents API key exposure, enables DB access, and keeps the system prompt hidden from clients.
 
-### FastAPI 선택 이유
+### Why FastAPI
 
-- `async/await` 네이티브 → Claude API 스트리밍과 궁합
-- `StreamingResponse` → SSE 구현이 자연스러움
-- 타입 힌트 → 자동 OpenAPI 문서 생성 (`/docs`)
+- Native `async/await` → pairs naturally with Claude API streaming
+- `StreamingResponse` → SSE implementation feels natural
+- Type hints → automatic OpenAPI docs generation (`/docs`)
 
 ---
 
 ## New Learnings
 
-### 벡터 DB는 서버 안에 있다
+### The Vector DB Sits Inside the Server
 
-"벡터 DB는 별도 외부 서비스"라고 생각하기 쉽지만, pgvector를 쓰면 기존 PostgreSQL이 벡터 DB가 된다. 별도 서버/서비스 불필요.
+It's easy to assume "the vector DB is a separate external service," but with pgvector, your existing PostgreSQL becomes the vector DB. No separate server or service needed.
 
-### PDF 업로드 = 모든 내용을 "한 번에" 참조하는 게 아니다
+### PDF Upload ≠ Loading Everything at Once
 
-- **인덱스 관점**: 전체 내용이 벡터 DB에 저장됨 (참조 가능)
-- **쿼리 관점**: 질문마다 관련 Top-K 청크만 Claude에게 전달 (전체 아님)
+- **Index perspective**: the full content is stored in the vector DB (available for retrieval)
+- **Query perspective**: only the relevant Top-K chunks are sent to Claude per question (not the entire document)
 
-Claude의 context window 한계 때문. A1 전체(56단원)를 한 번에 넣으면 수백만 토큰 → 불가능.
+This is due to Claude's context window limit. Feeding all of A1 (56 units) at once would mean millions of tokens — not feasible.
 
-### v0.1에서 임베딩 모델이 필요 없다
+### No Embedding Model Needed in v0.1
 
-임베딩과 pgvector는 v0.2(PDF RAG 도입) 시점에 필요. v0.1은 시스템 프롬프트 기반으로만 동작. 미리 선택할 필요 없음.
+Embeddings and pgvector are only required at v0.2 (when PDF RAG is introduced). v0.1 runs purely on system prompt-based logic. No need to choose an embedding model yet.
 
-### 임베딩 모델은 OpenAI가 아니어도 된다
+### The Embedding Model Doesn't Have to Be OpenAI
 
-독일어 학습 앱이라면 다국어 특화 모델이 더 적합할 수 있음:
-- Voyage AI `voyage-multilingual-2` (Anthropic 투자, 다국어 특화)
-- Cohere `embed-multilingual-v3.0` (100개 언어 지원)
-- HuggingFace `multilingual-e5-large` (무료)
+For a German learning app, a multilingual-specialized model may be a better fit:
+- Voyage AI `voyage-multilingual-2` (Anthropic-invested, multilingual-specialized)
+- Cohere `embed-multilingual-v3.0` (supports 100 languages)
+- HuggingFace `multilingual-e5-large` (free)
 
-비용보다 독일어 검색 품질이 우선. A1 전체 청크 수는 ~1,000개 → 어느 옵션이든 수 센트 수준.
+German retrieval quality matters more than cost. The total chunk count for all of A1 is ~1,000 — any option will cost only a few cents.
 
 ---
 
 ## Practical Examples
 
-### FastAPI SSE Streaming 핵심 코드
+### FastAPI SSE Streaming — Core Code
 
 ```python
-# FastAPI 서버
+# FastAPI server
 from fastapi.responses import StreamingResponse
 from anthropic import Anthropic
 
@@ -159,24 +158,24 @@ async def chat(request: ChatRequest):
 ```
 
 ```typescript
-// Next.js 클라이언트
+// Next.js client
 const response = await fetch('/api/chat', { method: 'POST', body: ... })
 const reader = response.body!.getReader()
 
 while (true) {
   const { done, value } = await reader.read()
   if (done) break
-  // 토큰 파싱 → UI에 append
+  // parse token → append to UI
 }
 ```
 
-### pgvector 유사도 검색
+### pgvector Similarity Search
 
 ```sql
--- 설치
+-- install
 CREATE EXTENSION IF NOT EXISTS vector;
 
--- 테이블 (1536차원 벡터)
+-- table (1536-dimension vector)
 CREATE TABLE chunks (
     id UUID PRIMARY KEY,
     unit_id VARCHAR(10),
@@ -184,7 +183,7 @@ CREATE TABLE chunks (
     embedding vector(1536)
 );
 
--- 유사도 검색 (unit_id 필터 포함)
+-- similarity search (with unit_id filter)
 SELECT content, embedding <=> $1 AS distance
 FROM chunks
 WHERE unit_id = 'A1-13'
@@ -192,7 +191,7 @@ ORDER BY distance
 LIMIT 3;
 ```
 
-### 에러 처리: exponential backoff
+### Error Handling: Exponential Backoff
 
 ```python
 async def call_claude_with_retry(messages, system_prompt, max_retries=3):
@@ -211,25 +210,25 @@ async def call_claude_with_retry(messages, system_prompt, max_retries=3):
 
 ## Common Misconceptions
 
-### "RAG = PDF 전체를 Claude에게 보내는 것"
+### "RAG = sending the entire PDF to Claude"
 
-틀렸다. RAG는 벡터 검색으로 관련 청크만 추출해서 보내는 것. PDF 전체를 매번 보내는 건 비용/속도 모두 불가능.
+Wrong. RAG uses vector search to extract only the relevant chunks and sends those. Sending the full PDF every time is neither cost-effective nor feasible in terms of speed.
 
-### "벡터 DB는 별도 서비스가 필요하다"
+### "A vector DB requires a separate service"
 
-pgvector를 쓰면 기존 PostgreSQL이 벡터 DB가 된다. Pinecone 같은 별도 서비스 없이도 충분 (소규모 기준).
+With pgvector, your existing PostgreSQL becomes the vector DB. A dedicated service like Pinecone is unnecessary for small-scale use.
 
-### "임베딩 모델 = LLM"
+### "Embedding model = LLM"
 
-임베딩 모델은 텍스트를 생성하지 않는다. 텍스트 → 숫자 벡터 변환만 한다. 훨씬 빠르고 저렴.
+An embedding model does not generate text. It only converts text into numeric vectors. It is much faster and cheaper.
 
 ---
 
 ## References
 
-- [F1 스펙 문서](projects/lingua-rag/docs/f1-streaming-qa-spec.md)
+- [F1 Spec Document](projects/lingua-rag/docs/f1-streaming-qa-spec.md)
 - [Product Brief](projects/lingua-rag/product-brief-lingua-rag-v01-20260225.md)
-- [ADR 기술 결정](projects/lingua-rag/docs/decisions.md)
+- [ADR Technical Decisions](projects/lingua-rag/docs/decisions.md)
 - [Anthropic Streaming Docs](https://docs.anthropic.com/en/api/messages-streaming)
 - [pgvector GitHub](https://github.com/pgvector/pgvector)
 
@@ -237,7 +236,7 @@ pgvector를 쓰면 기존 PostgreSQL이 벡터 DB가 된다. Pinecone 같은 별
 
 ## Next Steps
 
-- [ ] F1 구현: FastAPI + Claude Streaming 프로토타입 (Week 1)
-- [ ] `build_system_prompt()` 함수로 10개 질문 프롬프트 품질 테스트
-- [ ] v0.2 시점에 임베딩 모델 A/B 테스트 (OpenAI vs Voyage AI)
-- [ ] pgvector 로컬 Docker 환경 세팅 후 유사도 검색 실험
+- [ ] Implement F1: FastAPI + Claude Streaming prototype (Week 1)
+- [ ] Test prompt quality for 10 sample questions via `build_system_prompt()`
+- [ ] A/B test embedding models at v0.2 (OpenAI vs Voyage AI)
+- [ ] Set up pgvector in local Docker environment and experiment with similarity search

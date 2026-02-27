@@ -5,16 +5,16 @@ import { getAllLogs } from '@utils/posts';
 const logs = await getAllLogs();
 
 function formatDate(date: Date): string {
-  return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 ---
 
-<BaseLayout title="Logs" description="날짜별 작업 로그">
+<BaseLayout title="Logs" description="Daily session logs">
   <h1>Logs</h1>
-  <p class="subtitle">날짜별 작업 기록</p>
+  <p class="subtitle">Daily activity records</p>
 
   {logs.length === 0 ? (
-    <p class="empty">아직 로그가 없습니다.</p>
+    <p class="empty">No logs yet.</p>
   ) : (
     <ul class="log-list">
       {logs.map((log) => (

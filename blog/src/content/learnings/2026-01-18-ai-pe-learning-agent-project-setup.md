@@ -4,7 +4,6 @@ date: 2026-01-18
 description: "Building AI agents to learn AI engineering - the tool creation process itself becomes the learning journey. Instead of following tutorials, you solve..."
 category: learnings
 tags: ["meta-learning", "multi-agent", "langgraph", "project-setup", "portfolio"]
-lang: ko
 draft: false
 ---
 

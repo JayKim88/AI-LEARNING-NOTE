@@ -1,116 +1,115 @@
 ---
-title: "Claude Code 마켓플레이스와 플러그인 이해하기"
+title: "Understanding Claude Code Marketplace and Plugins"
 date: 2026-01-18
-description: "Claude Code의 마켓플레이스는 중앙 집중식 App Store가 아니라 **분산형 시스템**입니다."
+description: "Claude Code's marketplace is a **decentralized system**, not a centralized App Store."
 category: learnings
-lang: ko
 draft: false
 ---
 
-## 핵심 개념
+## Key Concepts
 
-### 1. 마켓플레이스의 본질
+### 1. The Nature of the Marketplace
 
-**마켓플레이스 = GitHub 레포지토리**
+**Marketplace = GitHub Repository**
 
-Claude Code의 마켓플레이스는 중앙 집중식 App Store가 아니라 **분산형 시스템**입니다.
+Claude Code's marketplace is a **decentralized system**, not a centralized App Store.
 
-| 특징 | 설명 |
-|------|------|
-| **타입** | 분산형 (npm, pip와 유사) |
-| **생성 방법** | GitHub 레포지토리 + `.claude-plugin/marketplace.json` 파일 |
-| **승인 절차** | Anthropic 승인 불필요 |
-| **식별자** | `owner/repo-name` 형식 (예: `team-attention/plugins-for-claude-natives`) |
+| Feature | Description |
+|---------|-------------|
+| **Type** | Decentralized (similar to npm, pip) |
+| **How to create** | GitHub repository + `.claude-plugin/marketplace.json` file |
+| **Approval process** | No Anthropic approval needed |
+| **Identifier** | `owner/repo-name` format (e.g., `team-attention/plugins-for-claude-natives`) |
 
-### 2. 마켓플레이스 vs 플러그인
+### 2. Marketplace vs Plugin
 
-**비유: App Store vs 앱**
+**Analogy: App Store vs App**
 
-| 개념 | 실제 예시 | 설명 |
-|------|----------|------|
-| **마켓플레이스** | `team-attention/plugins-for-claude-natives` | 여러 플러그인을 모아놓은 카탈로그 (App Store) |
-| **플러그인** | `agent-council`, `clarify`, `dev` | 개별 기능을 제공하는 확장 프로그램 (앱) |
+| Concept | Real Example | Description |
+|---------|-------------|-------------|
+| **Marketplace** | `team-attention/plugins-for-claude-natives` | A catalog of multiple plugins (App Store) |
+| **Plugin** | `agent-council`, `clarify`, `dev` | An extension providing individual functionality (App) |
 
-**관계도:**
+**Relationship:**
 ```
-마켓플레이스 (GitHub 레포)
-├── 플러그인 A
-├── 플러그인 B
-└── 플러그인 C
+Marketplace (GitHub Repo)
+├── Plugin A
+├── Plugin B
+└── Plugin C
 ```
 
-### 3. 마켓플레이스 구조
+### 3. Marketplace Structure
 
 ```
-레포지토리/
+repository/
 ├── .claude-plugin/
-│   ├── marketplace.json    # 마켓플레이스 정의 (플러그인 목록)
-│   └── plugin.json         # 메타데이터
+│   ├── marketplace.json    # Marketplace definition (plugin list)
+│   └── plugin.json         # Metadata
 └── plugins/
-    ├── plugin-1/           # 개별 플러그인
+    ├── plugin-1/           # Individual plugin
     ├── plugin-2/
     └── plugin-3/
 ```
 
-## 새로 알게된 것
+## New Learnings
 
-### Before: 오해했던 것
+### Before: What I Misunderstood
 
-- 마켓플레이스 = Anthropic이 운영하는 중앙 스토어
-- `/plugin marketplace add` = 내가 만든 플러그인을 퍼블리시하는 것
-- 플러그인을 만들려면 마켓플레이스에 등록해야 함
-- Anthropic의 승인이 필요함
+- Marketplace = a centralized store operated by Anthropic
+- `/plugin marketplace add` = publishing my own plugin
+- Plugins must be registered in a marketplace to be used
+- Anthropic approval is required
 
-### After: 실제 작동 방식
+### After: How It Actually Works
 
-- 마켓플레이스는 분산형 시스템 - 누구나 만들 수 있음
-- `/plugin marketplace add` = 남이 만든 마켓플레이스를 내 로컬 Claude Code에 연결
-- 플러그인 설치 방법은 3가지 (마켓플레이스, npx, 심볼릭 링크)
-- 승인 불필요 - GitHub에 올리기만 하면 됨
+- The marketplace is a decentralized system — anyone can create one
+- `/plugin marketplace add` = connecting someone else's marketplace to my local Claude Code
+- There are 3 ways to install plugins (marketplace, npx, symbolic link)
+- No approval needed — just push to GitHub
 
-## 실용적 예시
+## Practical Examples
 
-### 예시 1: 마켓플레이스를 통한 설치
+### Example 1: Installing via Marketplace
 
 ```bash
-# 1단계: 마켓플레이스를 내 Claude Code에 연결
+# Step 1: Connect a marketplace to your Claude Code
 /plugin marketplace add team-attention/plugins-for-claude-natives
 
-# 2단계: 원하는 플러그인 설치
+# Step 2: Install the desired plugin
 /plugin install agent-council
 ```
 
-**의미:**
-- "남이 만든 마켓플레이스를 내 로컬 Claude Code에 구독"
-- 마켓플레이스에 등록된 플러그인들을 설치 가능하게 됨
-- ❌ 내가 마켓플레이스를 만드는 것이 아님
-- ❌ 남들이 볼 수 있게 퍼블리시하는 것이 아님
+**What this means:**
+- "Subscribing to someone else's marketplace in your local Claude Code"
+- Enables installation of plugins listed in that marketplace
+- This does NOT create a marketplace for you
+- This does NOT publish anything for others to see
 
-### 예시 2: npx로 직접 설치 (마켓플레이스 불필요)
+### Example 2: Direct Installation via npx (no marketplace needed)
 
 ```bash
-# agent-council 플러그인 직접 설치
+# Install the agent-council plugin directly
 npx github:team-attention/agent-council
 ```
 
-**장점:**
-- 마켓플레이스 등록 없이 바로 설치
-- 현재 프로젝트의 `.claude/skills/agent-council/`에 복사
-- 자동으로 Claude Code/Codex CLI 감지
+**Advantages:**
+- Installs immediately without marketplace registration
+- Copies to the current project's `.claude/skills/agent-council/`
+- Automatically detects Claude Code/Codex CLI
 
-### 예시 3: 로컬 개발용 심볼릭 링크
+### Example 3: Symbolic Link for Local Development
 
 ```bash
-# 전역 skills 디렉토리에 링크
+# Link to the global skills directory
 ln -s /path/to/cloned-repo/plugins/agent-council/skills/agent-council \
       ~/.claude/skills/agent-council
 ```
 
-**장점:**
-- 실시간 수정 가능
-- 여러 프로젝트에서 공유
+**Advantages:**
+- Edit in real time
+- Share across multiple projects
 
-### 예시 4: marketplace.json 구조
+### Example 4: marketplace.json Structure
 
 ```json
 {
@@ -135,16 +134,16 @@ ln -s /path/to/cloned-repo/plugins/agent-council/skills/agent-council \
 }
 ```
 
-### 예시 5: 최소 플러그인 구조
+### Example 5: Minimal Plugin Structure
 
 ```
 my-skill/
-├── SKILL.md          # Claude가 읽는 스킬 정의
+├── SKILL.md          # Skill definition read by Claude
 └── scripts/
-    └── main.sh       # 실행 스크립트
+    └── main.sh       # Execution script
 ```
 
-**SKILL.md 예시:**
+**SKILL.md example:**
 ```markdown
 ---
 name: my-skill
@@ -162,37 +161,37 @@ Detailed description for Claude to understand how to use this skill.
 ```
 ```
 
-## 일반적인 오해
+## Common Misconceptions
 
-| 오해 | 실제 |
-|------|------|
-| 마켓플레이스 = 중앙 App Store | 분산형, 누구나 만들 수 있음 |
-| `/plugin marketplace add` = 내가 퍼블리시 | 남의 마켓플레이스를 내 로컬에 연결 |
-| Anthropic 승인 필요 | 승인 불필요, GitHub에 올리면 끝 |
-| 플러그인 = 마켓플레이스 | 플러그인(앱) ⊂ 마켓플레이스(스토어) |
-| 마켓플레이스에 등록해야만 사용 가능 | npx나 심볼릭 링크로도 설치 가능 |
+| Misconception | Reality |
+|---------------|---------|
+| Marketplace = centralized App Store | Decentralized — anyone can create one |
+| `/plugin marketplace add` = publishing my plugin | Connects someone else's marketplace to your local instance |
+| Anthropic approval required | No approval needed — just push to GitHub |
+| Plugin = Marketplace | Plugin (app) is a subset of Marketplace (store) |
+| Must register in a marketplace to use | Can also install via npx or symbolic link |
 
-## 참고 자료
+## References
 
-### 파일 위치
-- **마켓플레이스 정의**: `.claude-plugin/marketplace.json`
-- **전역 스킬**: `~/.claude/skills/`
-- **로컬 스킬**: `프로젝트/.claude/skills/`
+### File Locations
+- **Marketplace definition**: `.claude-plugin/marketplace.json`
+- **Global skills**: `~/.claude/skills/`
+- **Local skills**: `project/.claude/skills/`
 
-### 실제 예시
-- **agent-council 플러그인**: `/Users/jaykim/Documents/Projects/clones/plugins-for-claude-natives/plugins/agent-council/`
-- **마켓플레이스 정의 파일**: `/Users/jaykim/Documents/Projects/clones/plugins-for-claude-natives/.claude-plugin/marketplace.json`
+### Real Examples
+- **agent-council plugin**: `/Users/jaykim/Documents/Projects/clones/plugins-for-claude-natives/plugins/agent-council/`
+- **Marketplace definition file**: `/Users/jaykim/Documents/Projects/clones/plugins-for-claude-natives/.claude-plugin/marketplace.json`
 
-### GitHub 레포지토리
+### GitHub Repository
 - https://github.com/team-attention/plugins-for-claude-natives
 
-### 원본 문서
+### Source Document
 - `/Users/jaykim/Documents/Projects/clones/plugins-for-claude-natives/claude-code-marketplace-guide.md`
 
-## 다음 단계
+## Next Steps
 
-1. `learning-summary` 스킬을 정기적으로 사용하여 학습 내용 기록
-2. 다른 플러그인들 탐색 (`agent-council`, `clarify`, `dev`)
-3. 직접 커스텀 스킬/플러그인 만들어보기
-4. 나만의 마켓플레이스 레포지토리 생성 고려
-5. 전역 설치 vs 로컬 설치 전략 수립
+1. Use the `learning-summary` skill regularly to record learnings
+2. Explore other plugins (`agent-council`, `clarify`, `dev`)
+3. Try building a custom skill/plugin from scratch
+4. Consider creating your own marketplace repository
+5. Establish a strategy for global vs local installation

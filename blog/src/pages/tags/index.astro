@@ -7,9 +7,9 @@ const posts = await getAllPosts();
 const tags = getAllTags(posts);
 ---
 
-<BaseLayout title="Tags" description="태그별 포스트 분류">
+<BaseLayout title="Tags" description="Posts organized by tag">
   <h1>Tags</h1>
-  <p class="subtitle">{tags.size}개의 태그</p>
+  <p class="subtitle">{tags.size} tags</p>
 
   <div class="tag-cloud">
     {[...tags.entries()].map(([tag, count]) => (

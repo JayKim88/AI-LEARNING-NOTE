@@ -6,12 +6,12 @@ import { getPostsByCategory } from '@utils/posts';
 const posts = await getPostsByCategory('learnings');
 ---
 
-<BaseLayout title="Learnings" description="AI 도구와 기술을 직접 사용하며 배운 실전 기록">
+<BaseLayout title="Learnings" description="Hands-on records of learning AI tools and technologies">
   <h1>Learnings</h1>
-  <p class="subtitle">AI 도구와 기술을 직접 사용하며 배운 실전 기록</p>
+  <p class="subtitle">Hands-on records of learning AI tools and technologies</p>
 
   {posts.length === 0 ? (
-    <p class="empty">아직 포스트가 없습니다.</p>
+    <p class="empty">No posts yet.</p>
   ) : (
     posts.map((post) => (
       <PostCard

@@ -15,9 +15,9 @@ export async function getStaticPaths() {
 const { tag, posts } = Astro.props;
 ---
 
-<BaseLayout title={`#${tag}`} description={`"${tag}" 태그가 달린 포스트`}>
+<BaseLayout title={`#${tag}`} description={`Posts tagged with "${tag}"`}>
   <h1>#{tag}</h1>
-  <p class="subtitle">{posts.length}개의 포스트</p>
+  <p class="subtitle">{posts.length} posts</p>
 
   {posts.map((post) => (
     <PostCard
