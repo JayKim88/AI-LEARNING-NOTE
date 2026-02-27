@@ -20,18 +20,18 @@ The core technique for supplying an LLM with domain-specific knowledge it doesn'
 flowchart LR
     subgraph OFFLINE["📦 Offline: Indexing"]
         direction TB
-        PDF[PDF 교재] --> PT[pdftotext\n-layout]
-        PT --> CD[단원 경계 감지\nunit_id 할당]
-        CD --> CH[청크 분할\n1800자 / 200자 오버랩]
-        CH --> EM[OpenAI Embedding\ntext-embedding-3-small\n1536차원]
+        PDF[PDF Textbook] --> PT[pdftotext\n-layout]
+        PT --> CD[Unit Boundary Detection\nunit_id Assignment]
+        CD --> CH[Chunk Splitting\n1800 chars / 200 char overlap]
+        CH --> EM[OpenAI Embedding\ntext-embedding-3-small\n1536 dims]
         EM --> PG[(Supabase pgvector\ndocument_chunks)]
     end
 
     subgraph ONLINE["⚡ Online: Query"]
         direction TB
-        Q[사용자 질문] --> QE[질문 임베딩]
-        QE --> VS[벡터 검색\ncosine distance < 0.7\n상위 3청크]
-        VS --> INJ[시스템 프롬프트 주입]
+        Q[User Question] --> QE[Query Embedding]
+        QE --> VS[Vector Search\ncosine distance < 0.7\nTop-3 chunks]
+        VS --> INJ[System Prompt Injection]
         INJ --> LLM[Claude API]
     end
 
@@ -56,27 +56,27 @@ Instead of waiting for the full LLM response (potentially 5-10s), SSE delivers t
 
 ```mermaid
 sequenceDiagram
-    participant U as 사용자
+    participant U as User
     participant FE as Next.js<br/>(useChat)
     participant PROXY as Next.js<br/>Route Handler
     participant BE as FastAPI
     participant CLAUDE as Claude API
 
-    U->>FE: 질문 입력 + 전송
+    U->>FE: Enter question + send
     FE->>PROXY: POST /api/chat<br/>{message, unit_id}
     PROXY->>BE: POST /api/chat<br/>Authorization: Bearer JWT
-    BE->>BE: JWT 검증 / Lock 획득<br/>RAG 검색 + 프롬프트 빌드
+    BE->>BE: JWT verify / acquire Lock<br/>RAG search + build prompt
     BE->>CLAUDE: messages.stream()
-    loop 스트리밍
+    loop Streaming
         CLAUDE-->>BE: token
         BE-->>PROXY: data: {"type":"token","content":"..."}
-        PROXY-->>FE: SSE 그대로 전달
-        FE->>FE: 메시지 content 누적 업데이트
-        FE-->>U: 실시간 텍스트 렌더링
+        PROXY-->>FE: SSE passthrough
+        FE->>FE: Accumulate content update
+        FE-->>U: Real-time text rendering
     end
     CLAUDE-->>BE: stop_reason: end_turn
     BE-->>PROXY: data: {"type":"done",...}
-    BE->>BE: assistant 메시지 DB 저장
+    BE->>BE: Save assistant message to DB
 ```
 
 **SSE wire format:**
@@ -97,12 +97,12 @@ Rather than a single flat system prompt, LinguaRAG composes the prompt from 6 di
 ```mermaid
 block-beta
     columns 1
-    L1["Layer 1 🔒 고정  —  튜터 역할 선언"]
-    L2["Layer 2 🔄 동적  —  레벨 modifier (A1 / A2)"]
-    L3["Layer 3 🔒 고정 (~1,200 토큰)  —  56단원 전체 요약표"]
-    L4["Layer 4 🔄 동적  —  현재 단원 상세 (제목·문법·context_prompt)"]
-    L5["Layer 5 🔒 고정  —  답변 포맷 규칙"]
-    L6["Layer 6 ✨ 조건부  —  RAG 청크 주입 (검색 결과 있을 경우만)"]
+    L1["Layer 1 🔒 Static  —  Tutor role declaration"]
+    L2["Layer 2 🔄 Dynamic  —  Level modifier (A1 / A2)"]
+    L3["Layer 3 🔒 Static (~1,200 tokens)  —  Full 56-unit curriculum summary"]
+    L4["Layer 4 🔄 Dynamic  —  Current unit detail (title · grammar · context_prompt)"]
+    L5["Layer 5 🔒 Static  —  Response format rules"]
+    L6["Layer 6 ✨ Conditional  —  RAG chunk injection (only when search results exist)"]
 ```
 
 Layer 3 is the secret weapon: by embedding the entire 56-unit curriculum summary (~1,200 tokens), the model can handle cross-unit questions ("I'm on unit 3 but asking about unit 8 grammar") correctly without per-query context setup.
@@ -140,20 +140,20 @@ This is underappreciated. When a user sends a second message before the first st
 
 ```mermaid
 sequenceDiagram
-    participant U as 사용자
-    participant Q as 메시지 큐<br/>(Frontend)
+    participant U as User
+    participant Q as Message Queue<br/>(Frontend)
     participant L as asyncio.Lock<br/>(Backend)
     participant S as Claude Stream
 
-    U->>Q: 질문 A 전송
-    Q->>L: Lock 획득
-    L->>S: 스트리밍 시작
-    U->>Q: 질문 B 전송 (스트리밍 중)
-    Note over Q: 큐에 대기
-    S-->>L: 스트리밍 완료
-    L->>L: Lock 해제
-    Q->>L: 질문 B — Lock 획득
-    L->>S: 다음 스트리밍 시작
+    U->>Q: Send question A
+    Q->>L: Acquire Lock
+    L->>S: Start streaming
+    U->>Q: Send question B (streaming in progress)
+    Note over Q: Queued
+    S-->>L: Streaming complete
+    L->>L: Release Lock
+    Q->>L: Question B — Acquire Lock
+    L->>S: Start next stream
 ```
 
 Two guards work together:
@@ -168,19 +168,19 @@ Stateless auth means the backend never stores session state. It trusts Supabase'
 
 ```mermaid
 sequenceDiagram
-    participant U as 사용자
+    participant U as User
     participant SB as Supabase Auth
     participant FE as Next.js
     participant BE as FastAPI
     participant JWKS as Supabase JWKS<br/>/.well-known/jwks.json
 
-    U->>SB: 로그인 (Google OAuth)
-    SB-->>FE: JWT (ES256 서명)
+    U->>SB: Login (Google OAuth)
+    SB-->>FE: JWT (ES256 signed)
     FE->>BE: POST /api/chat<br/>Authorization: Bearer JWT
-    BE->>JWKS: 공개키 요청 (캐시됨)
-    JWKS-->>BE: 공개키 반환
-    BE->>BE: JWT 서명 검증 + 만료 확인
-    BE-->>FE: 200 OK (스트리밍 시작)
+    BE->>JWKS: Request public key (cached)
+    JWKS-->>BE: Return public key
+    BE->>BE: Verify JWT signature + check expiry
+    BE-->>FE: 200 OK (start streaming)
 ```
 
 ---
@@ -258,11 +258,11 @@ LESSON_END_PAGE   = 178  # skip answer key / listening scripts
 MAX_UNIT_STEP     = 5    # max allowed forward jump in unit number
 
 UNIT_HEADER_PATTERNS_KO = [
-    # Format A: "35               W-의문문 만들기" (same line, 10+ spaces)
+    # Format A: "35               W-의문문 만들기" (unit title starts on same line after spaces)
     # Page footers are safe here — page numbers stand alone on their own line
     re.compile(r"(?:^|\n)\s{0,6}(\d{1,2})[ \t]{10,}\S"),
 
-    # Format B: "36\n                 의지와 바람을..." (number alone, Korean next line)
+    # Format B: "36\n                 의지와 바람을..." (number alone, Korean title on next line)
     # Korean first char [\uAC00-\uD7A3] excludes "11\n    Zusammen A1" (Latin Z)
     re.compile(r"(?:^|\n)\s{0,6}(\d{1,2})[ \t]*\n[ \t]{15,}[\uAC00-\uD7A3]"),
 ]
@@ -414,4 +414,4 @@ Copyright notices appear mixed with lesson content in the same chunk. They're ne
 - [ ] Implement v0.2 RAG endpoint: add `sources[]` field to `/api/chat` response
 - [ ] Build source panel UI (middle panel in 3-panel layout)
 - [ ] Experiment with summarization compression for context window management
-- [ ] Consider indexing `Hörtext 듣기지문` (p193–203) as separate `textbook_id` for dialogue-based queries
+- [ ] Consider indexing listening scripts (p193–203) as separate `textbook_id` for dialogue-based queries
