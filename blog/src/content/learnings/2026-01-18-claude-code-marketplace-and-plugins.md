@@ -3,6 +3,7 @@ title: "Understanding Claude Code Marketplace and Plugins"
 date: 2026-01-18
 description: "Claude Code's marketplace is a **decentralized system**, not a centralized App Store."
 category: learnings
+lang: en
 draft: false
 ---
 

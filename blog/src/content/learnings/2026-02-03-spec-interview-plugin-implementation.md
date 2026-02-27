@@ -3,6 +3,7 @@ title: "Spec Interview Plugin — AI-Driven Requirements Gathering with AskUserQ
 date: 2026-02-03
 description: "A new Claude Code plugin that collects requirements by having **the AI interview the user**."
 category: learnings
+lang: en
 draft: false
 ---
 

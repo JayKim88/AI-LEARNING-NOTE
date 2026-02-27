@@ -5,6 +5,7 @@ description: "YC's philosophy has shifted from \"Make something people want\" to
 category: digests
 tags: ["ai", "agent-economy", "software-strategy", "yc", "a16z", "harness", "vertical-saas"]
 source: "https://www.linkedin.com/posts/gb-jeong_make-something-agents-want-yc%EC%9D%98-%EC%B2%A0%ED%95%99%EC%9D%B4-%EB%92%A4%EC%A7%91%ED%98%94%EC%8A%B5%EB%8B%88%EB%8B%A4-share-7431384260416196608-Y0AB"
+lang: en
 draft: false
 ---
 

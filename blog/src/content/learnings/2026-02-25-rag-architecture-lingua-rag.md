@@ -4,6 +4,7 @@ date: 2026-02-25
 description: "Core RAG concepts understood while planning LinguaRAG: offline/online phase separation, SSE streaming mechanics, prompt assembly, and the role of pgvector."
 category: learnings
 tags: ["rag", "fastapi", "sse-streaming", "pgvector", "embedding", "claude-api", "llm"]
+lang: en
 draft: false
 ---
 

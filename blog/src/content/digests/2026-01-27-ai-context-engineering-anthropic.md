@@ -5,6 +5,7 @@ description: "Anthropic's context engineering guide covers strategies for optimi
 category: digests
 tags: ["ai", "context-engineering", "ai-agents", "llm", "anthropic"]
 source: "https://www.anthropic.com/engineering/effective-context-engineering-for-ai-agents"
+lang: en
 draft: false
 ---
 
