@@ -47,6 +47,30 @@ export function getAdjacentPosts(
   };
 }
 
+export function getReadingTime(body: string): number {
+  const text = body
+    .replace(/```[\s\S]*?```/g, '')
+    .replace(/`[^`]*`/g, '')
+    .replace(/[#*_[\]()!]/g, '')
+    .trim();
+  const wordCount = text.split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.ceil(wordCount / 200));
+}
+
+export function getRelatedPosts(currentPost: Post, allPosts: Post[], limit = 3): Post[] {
+  const currentTags = new Set(currentPost.data.tags);
+  return allPosts
+    .filter((p) => p.slug !== currentPost.slug)
+    .map((p) => ({
+      post: p,
+      score: p.data.tags.filter((t) => currentTags.has(t)).length,
+    }))
+    .filter(({ score }) => score > 0)
+    .sort((a, b) => b.score - a.score || b.post.data.date.getTime() - a.post.data.date.getTime())
+    .slice(0, limit)
+    .map(({ post }) => post);
+}
+
 export async function getAllLogs(): Promise<LogEntry[]> {
   const logs = await getCollection('logs');
   return logs.sort((a, b) => b.data.date.getTime() - a.data.date.getTime());

@@ -9,7 +9,7 @@ interface Props {
 
 const {
   title,
-  description = 'AI 학습과 실험 기록 - AI Learning Blog',
+  description = 'Documenting experiments and learnings in AI engineering.',
   type = 'website',
   publishedDate,
   tags = [],
@@ -18,6 +18,9 @@ const {
 const siteName = 'AI Learning Blog';
 const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
 const canonicalURL = new URL(Astro.url.pathname, Astro.site);
+const ogImage = Astro.site
+  ? new URL(`${import.meta.env.BASE_URL}og-image.svg`, Astro.site)
+  : undefined;
 ---
 
 <meta charset="utf-8" />
@@ -34,6 +37,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site);
 <meta property="og:description" content={description} />
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:site_name" content={siteName} />
+{ogImage && <meta property="og:image" content={ogImage.toString()} />}
 {publishedDate && (
   <meta property="article:published_time" content={publishedDate.toISOString()} />
 )}

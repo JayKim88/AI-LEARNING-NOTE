@@ -8,6 +8,51 @@
   --content-width: 768px;
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', monospace;
+  --cal-l1: #9be9a8;
+  --cal-l2: #40c463;
+  --cal-l3: #30a14e;
+  --cal-l4: #216e39;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-primary: #60a5fa;
+    --color-text: #e2e8f0;
+    --color-text-muted: #94a3b8;
+    --color-bg: #0f172a;
+    --color-bg-muted: #1e293b;
+    --color-border: #334155;
+    --cal-l1: #0e4429;
+    --cal-l2: #006d32;
+    --cal-l3: #26a641;
+    --cal-l4: #39d353;
+  }
+}
+
+[data-theme="dark"] {
+  --color-primary: #60a5fa;
+  --color-text: #e2e8f0;
+  --color-text-muted: #94a3b8;
+  --color-bg: #0f172a;
+  --color-bg-muted: #1e293b;
+  --color-border: #334155;
+  --cal-l1: #0e4429;
+  --cal-l2: #006d32;
+  --cal-l3: #26a641;
+  --cal-l4: #39d353;
+}
+
+[data-theme="light"] {
+  --color-primary: #3b82f6;
+  --color-text: #1a1a2e;
+  --color-text-muted: #6b7280;
+  --color-bg: #ffffff;
+  --color-bg-muted: #f3f4f6;
+  --color-border: #e5e7eb;
+  --cal-l1: #9be9a8;
+  --cal-l2: #40c463;
+  --cal-l3: #30a14e;
+  --cal-l4: #216e39;
 }
 
 *,
@@ -35,4 +80,25 @@ a {
 code,
 pre {
   font-family: var(--font-mono);
+}
+
+/* Shiki dual-theme: dark mode code blocks */
+@media (prefers-color-scheme: dark) {
+  .astro-code,
+  .astro-code span {
+    color: var(--shiki-dark) !important;
+    background-color: var(--shiki-dark-bg) !important;
+    font-style: var(--shiki-dark-font-style) !important;
+    font-weight: var(--shiki-dark-font-weight) !important;
+    text-decoration: var(--shiki-dark-text-decoration) !important;
+  }
+}
+
+[data-theme="dark"] .astro-code,
+[data-theme="dark"] .astro-code span {
+  color: var(--shiki-dark) !important;
+  background-color: var(--shiki-dark-bg) !important;
+  font-style: var(--shiki-dark-font-style) !important;
+  font-weight: var(--shiki-dark-font-weight) !important;
+  text-decoration: var(--shiki-dark-text-decoration) !important;
 }

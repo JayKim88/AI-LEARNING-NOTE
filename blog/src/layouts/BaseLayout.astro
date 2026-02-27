@@ -16,8 +16,12 @@ const { title, description, type, publishedDate, tags } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="ko">
+<html lang="en">
   <head>
+    <script is:inline>
+      const stored = localStorage.getItem('theme');
+      if (stored) document.documentElement.setAttribute('data-theme', stored);
+    </script>
     <SEO
       title={title}
       description={description}
@@ -25,10 +29,11 @@ const { title, description, type, publishedDate, tags } = Astro.props;
       publishedDate={publishedDate}
       tags={tags}
     />
+    <slot name="head" />
   </head>
   <body>
     <Header />
-    <main class="main">
+    <main class="main" data-pagefind-body>
       <slot />
     </main>
     <Footer />

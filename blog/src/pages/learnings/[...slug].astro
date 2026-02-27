@@ -1,6 +1,6 @@
 ---
 import PostLayout from '@layouts/PostLayout.astro';
-import { getPostsByCategory, getAdjacentPosts } from '@utils/posts';
+import { getAllPosts, getPostsByCategory, getAdjacentPosts, getReadingTime, getRelatedPosts } from '@utils/posts';
 
 export async function getStaticPaths() {
   const posts = await getPostsByCategory('learnings');
@@ -11,10 +11,15 @@ export async function getStaticPaths() {
 }
 
 const { post } = Astro.props;
-const { Content } = await post.render();
+const { Content, headings } = await post.render();
+const readingTime = getReadingTime(post.body);
 
-const categoryPosts = await getPostsByCategory('learnings');
+const [categoryPosts, allPosts] = await Promise.all([
+  getPostsByCategory('learnings'),
+  getAllPosts(),
+]);
 const { prev, next } = getAdjacentPosts(categoryPosts, post.slug);
+const relatedPosts = getRelatedPosts(post, allPosts, 3);
 ---
 
 <PostLayout
@@ -27,6 +32,9 @@ const { prev, next } = getAdjacentPosts(categoryPosts, post.slug);
   lang={post.data.lang}
   prev={prev}
   next={next}
+  readingTime={readingTime}
+  headings={headings}
+  relatedPosts={relatedPosts}
 >
   <Content />
 </PostLayout>

@@ -1,6 +1,7 @@
 ---
 import BaseLayout from './BaseLayout.astro';
 import TagBadge from '@components/TagBadge.astro';
+import TOC from '@components/TOC.astro';
 import { formatDate } from '@utils/date';
 import type { Post } from '@utils/posts';
 
@@ -14,9 +15,12 @@ interface Props {
   lang?: string;
   prev: Post | null;
   next: Post | null;
+  readingTime?: number;
+  headings?: { depth: number; slug: string; text: string }[];
+  relatedPosts?: Post[];
 }
 
-const { title, date, description, category, tags, source, lang, prev, next } = Astro.props;
+const { title, date, description, category, tags, source, lang, prev, next, readingTime, headings, relatedPosts } = Astro.props;
 const base = import.meta.env.BASE_URL;
 ---
 
@@ -32,6 +36,7 @@ const base = import.meta.env.BASE_URL;
       <div class="post-meta">
         <time datetime={date.toISOString()}>{formatDate(date)}</time>
         <a href={`${base}${category}/`} class="category-link">{category}</a>
+        {readingTime && <span>{readingTime} min read</span>}
         {lang === 'en' && <span class="lang-badge">EN</span>}
       </div>
       <h1>{title}</h1>
@@ -50,9 +55,29 @@ const base = import.meta.env.BASE_URL;
       )}
     </header>
 
+    {headings && <TOC headings={headings} />}
+
     <div class="prose">
       <slot />
     </div>
+
+    {relatedPosts && relatedPosts.length > 0 && (
+      <section class="related-posts">
+        <h2 class="related-title">Related Posts</h2>
+        <ul class="related-list">
+          {relatedPosts.map((p) => (
+            <li>
+              <a href={`${base}${p.collection}/${p.slug}/`} class="related-link">
+                <span class="related-post-title">{p.data.title}</span>
+                <span class="related-meta">
+                  <span class="related-category">{p.collection}</span>
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )}
 
     <nav class="post-nav">
       {prev && (
@@ -268,6 +293,60 @@ const base = import.meta.env.BASE_URL;
 
   .prose :global(.astro-code) {
     border: 1px solid var(--color-border);
+  }
+
+  /* Related posts */
+  .related-posts {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .related-title {
+    font-size: 1.1rem;
+    margin: 0 0 1rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .related-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .related-link {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    text-decoration: none;
+    transition: border-color 0.2s;
+  }
+
+  .related-link:hover {
+    border-color: var(--color-primary);
+  }
+
+  .related-post-title {
+    font-size: 0.9rem;
+    color: var(--color-text);
+  }
+
+  .related-meta {
+    flex-shrink: 0;
+  }
+
+  .related-category {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    text-transform: capitalize;
   }
 
   /* Post navigation */

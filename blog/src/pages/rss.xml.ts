@@ -7,7 +7,7 @@ export async function GET(context: APIContext) {
 
   return rss({
     title: 'AI Learning Blog',
-    description: 'AI 학습과 실험 기록',
+    description: 'Experiments and learnings in AI engineering',
     site: context.site!,
     items: posts.map((post) => ({
       title: post.data.title,

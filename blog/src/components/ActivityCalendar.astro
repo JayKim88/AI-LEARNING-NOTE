@@ -540,10 +540,10 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
   .cell.future          { background: transparent; cursor: default; }
   .cell.empty           { background: var(--color-bg-muted, #ebedf0); }
   .cell[data-future]    { cursor: default; }
-  .cell.l1       { background: #9be9a8; }
-  .cell.l2       { background: #40c463; }
-  .cell.l3       { background: #30a14e; }
-  .cell.l4       { background: #216e39; }
+  .cell.l1       { background: var(--cal-l1); }
+  .cell.l2       { background: var(--cal-l2); }
+  .cell.l3       { background: var(--cal-l3); }
+  .cell.l4       { background: var(--cal-l4); }
 
   .cell:not(.future):hover { outline-color: rgba(0,0,0,0.3); }
 
@@ -569,10 +569,10 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
   }
 
   .legend-cell.empty { background: var(--color-bg-muted, #ebedf0); }
-  .legend-cell.l1    { background: #9be9a8; }
-  .legend-cell.l2    { background: #40c463; }
-  .legend-cell.l3    { background: #30a14e; }
-  .legend-cell.l4    { background: #216e39; }
+  .legend-cell.l1    { background: var(--cal-l1); }
+  .legend-cell.l2    { background: var(--cal-l2); }
+  .legend-cell.l3    { background: var(--cal-l3); }
+  .legend-cell.l4    { background: var(--cal-l4); }
 
   /* ── Tooltip ─────────────────────────────────────────────── */
   .cal-tooltip {
