@@ -1,0 +1,121 @@
+---
+const base = import.meta.env.BASE_URL;
+---
+
+<div id="search-backdrop" class="search-backdrop" data-pagefind-ignore>
+  <div class="search-dialog" role="dialog" aria-modal="true" aria-label="Search">
+    <div id="search-pagefind" data-base={base}></div>
+  </div>
+</div>
+
+<script is:inline>
+  (function () {
+    var backdrop  = document.getElementById('search-backdrop');
+    var container = document.getElementById('search-pagefind');
+    var base      = (container && container.dataset.base) || '/';
+    var loaded    = false;
+
+    function focusInput() {
+      var input = container && container.querySelector('input');
+      if (input) input.focus();
+    }
+
+    function loadPagefind() {
+      if (loaded) { setTimeout(focusInput, 50); return; }
+      loaded = true;
+
+      var link = document.createElement('link');
+      link.rel  = 'stylesheet';
+      link.href = base + 'pagefind/pagefind-ui.css';
+      document.head.appendChild(link);
+
+      var script = document.createElement('script');
+      script.src = base + 'pagefind/pagefind-ui.js';
+      script.onload = function () {
+        if (typeof PagefindUI !== 'undefined') {
+          new PagefindUI({ element: '#search-pagefind', baseUrl: base, showImages: false });
+        }
+        setTimeout(focusInput, 100);
+      };
+      script.onerror = function () {
+        if (container) {
+          container.innerHTML = '<p class="search-unavailable">Search is only available after building the site.</p>';
+        }
+      };
+      document.head.appendChild(script);
+    }
+
+    function openSearch() {
+      backdrop.classList.add('is-open');
+      document.body.style.overflow = 'hidden';
+      loadPagefind();
+    }
+
+    function closeSearch() {
+      backdrop.classList.remove('is-open');
+      document.body.style.overflow = '';
+    }
+
+    document.addEventListener('search:open', openSearch);
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && backdrop.classList.contains('is-open')) {
+        e.preventDefault();
+        closeSearch();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        openSearch();
+      }
+    });
+
+    backdrop.addEventListener('click', function (e) {
+      if (e.target === backdrop) closeSearch();
+    });
+  })();
+</script>
+
+<style is:global>
+  .search-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10vh;
+  }
+
+  .search-backdrop.is-open {
+    display: flex;
+  }
+
+  .search-dialog {
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 70vh;
+    overflow-y: auto;
+    margin: 0 1rem;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  }
+
+  #search-pagefind {
+    --pagefind-ui-scale: 0.9;
+    --pagefind-ui-primary: var(--color-primary);
+    --pagefind-ui-text: var(--color-text);
+    --pagefind-ui-background: var(--color-bg);
+    --pagefind-ui-border: var(--color-border);
+    --pagefind-ui-tag: var(--color-bg-muted);
+  }
+
+  .search-unavailable {
+    padding: 1.25rem;
+    color: var(--color-text-muted);
+    font-size: 0.9rem;
+    text-align: center;
+  }
+</style>

@@ -117,7 +117,6 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
   const tooltip   = document.getElementById('cal-tooltip')!;
   const listEl    = document.getElementById('activity-list')!;
   const moreBtn   = document.getElementById('show-more-btn') as HTMLButtonElement;
-  const actSec    = document.getElementById('activity-section')!;
 
   const data: ClientData = JSON.parse(outer.dataset.cal ?? '{}');
   const { yearsData, allMonths, dayMap, currentYear } = data;
@@ -404,7 +403,6 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
 
     listEl.innerHTML = renderDayBlock(date, entries);
     updateMoreBtn();
-    actSec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
 
   // ── Init ──────────────────────────────────────────────────────
