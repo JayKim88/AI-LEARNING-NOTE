@@ -7,7 +7,8 @@
     "build": "astro build && npx pagefind --site dist --output-path dist/pagefind",
     "preview": "astro preview",
     "astro": "astro",
-    "migrate": "tsx scripts/migrate.ts"
+    "migrate": "tsx scripts/migrate.ts",
+    "sync-plugins": "tsx scripts/sync-plugins.ts"
   },
   "dependencies": {
     "@astrojs/rss": "^4.0.11",

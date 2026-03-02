@@ -110,6 +110,50 @@ const base = import.meta.env.BASE_URL;
     });
 
     await mermaid.run({ nodes: document.querySelectorAll('.mermaid') });
+
+    // Lightbox: click to enlarge
+    document.querySelectorAll('.mermaid').forEach((el) => {
+      el.setAttribute('title', 'Click to enlarge');
+      el.style.cursor = 'zoom-in';
+
+      el.addEventListener('click', () => {
+        const overlay = document.createElement('div');
+        overlay.className = 'mermaid-overlay';
+
+        const box = document.createElement('div');
+        box.className = 'mermaid-overlay-box';
+        box.innerHTML = el.innerHTML;
+
+        // Make SVG fill the lightbox — remove fixed dimensions, preserve aspect ratio
+        const svg = box.querySelector('svg');
+        if (svg) {
+          if (!svg.getAttribute('viewBox')) {
+            const w = parseFloat(svg.getAttribute('width') || '800');
+            const h = parseFloat(svg.getAttribute('height') || '600');
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+          }
+          svg.removeAttribute('width');
+          svg.removeAttribute('height');
+          svg.style.width = '100%';
+          svg.style.height = 'auto';
+          svg.style.display = 'block';
+        }
+
+        const hint = document.createElement('p');
+        hint.className = 'mermaid-overlay-hint';
+        hint.textContent = 'Click anywhere to close';
+
+        overlay.appendChild(box);
+        overlay.appendChild(hint);
+        document.body.appendChild(overlay);
+        document.body.style.overflow = 'hidden';
+
+        overlay.addEventListener('click', () => {
+          overlay.remove();
+          document.body.style.overflow = '';
+        });
+      });
+    });
   }
 </script>
 
@@ -405,5 +449,54 @@ const base = import.meta.env.BASE_URL;
       grid-column: 1;
       text-align: left;
     }
+  }
+
+  /* Mermaid diagram hover hint */
+  :global(.mermaid) {
+    cursor: zoom-in;
+    border-radius: 8px;
+    transition: outline 0.15s;
+  }
+
+  :global(.mermaid:hover) {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 4px;
+  }
+
+  /* Mermaid lightbox overlay — global because it's injected into body */
+  :global(.mermaid-overlay) {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.75);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: zoom-out;
+    padding: 2rem;
+    gap: 1rem;
+    backdrop-filter: blur(2px);
+  }
+
+  :global(.mermaid-overlay-box) {
+    background: #fff;
+    border-radius: 12px;
+    padding: 2rem;
+    width: min(92vw, 1100px);
+    max-height: 88vh;
+    overflow: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  }
+
+  :global(.mermaid-overlay-box svg) {
+    width: 100%;
+    height: auto;
+  }
+
+  :global(.mermaid-overlay-hint) {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.8rem;
+    margin: 0;
   }
 </style>

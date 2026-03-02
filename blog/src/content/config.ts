@@ -18,10 +18,21 @@ const logSchema = z.object({
   tags: z.array(z.string()).default([]),
 });
 
+const pluginSchema = z.object({
+  title: z.string(),
+  description: z.string().optional(),
+  category: z.string().default('Other'),
+  agentCount: z.number().optional(),
+  tags: z.array(z.string()).default([]),
+  lastUpdated: z.coerce.date(),
+});
+
 const digests = defineCollection({ type: 'content', schema: postSchema });
 const learnings = defineCollection({ type: 'content', schema: postSchema });
 const logs = defineCollection({ type: 'content', schema: logSchema });
+const plugins = defineCollection({ type: 'content', schema: pluginSchema });
 
-export const collections = { digests, learnings, logs };
+export const collections = { digests, learnings, logs, plugins };
 export type PostFrontmatter = z.infer<typeof postSchema>;
 export type LogFrontmatter = z.infer<typeof logSchema>;
+export type PluginFrontmatter = z.infer<typeof pluginSchema>;
