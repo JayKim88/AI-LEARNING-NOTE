@@ -1,15 +1,40 @@
 ---
 title: "2026-02-26 Session Log"
 date: 2026-02-26
-description: "debate-plugin: 5-layer AI quality system + debate v2 multi-round engine, prism-debate rename + agent expansion, competitive-agents: planning-interview integration..."
-tags: ["debate-plugin", "competitive-agents"]
+description: "debate-plugin: 5-layer AI quality system + debate v2 multi-round engine, prism-debate rename + agent expansion, competitive-agents: planning-interview integration, lingua-rag: local env to production deploy"
+tags: ["debate-plugin", "competitive-agents", "lingua-rag"]
 ---
 
 ## Topics Worked On Today
 
+- [lingua-rag: First Production Deploy](#lingua-rag-first-production-deploy)
 - [debate-plugin (17:44)](#debate-plugin-1744)
 - [debate-plugin (20:06)](#debate-plugin-2006)
 - [competitive-agents (20:40)](#competitive-agents-2040)
+
+---
+
+## LinguaRAG: First Production Deploy
+
+> Full pipeline from local environment setup to Render + Vercel production deployment
+
+### What I Did
+
+- **Local environment** — set up PostgreSQL@17, Python venv, npm install, `.env` configuration
+- **German TTS** — Web Speech API integration: click bold text in chat to hear pronunciation, with volume slider. Uses browser built-in `speechSynthesis` with `de-DE` locale at rate 0.85
+- **Render backend deploy** — Docker-based FastAPI deployment on Render free tier (Singapore region). Created Render PostgreSQL and initialized `schema.sql`
+- **Vercel frontend deploy** — Next.js frontend on Vercel, connected to Render backend via `BACKEND_URL` env var. Next.js API routes proxy all backend calls (simplifies CORS and cookie handling)
+- **Security upgrade** — Next.js 15.1.4 → 15.5.12 to fix CVE-2025-66478 (was blocking Vercel deployment)
+
+### Key Decisions
+
+- **Railway → Render migration** — Railway dropped their free tier; Render free tier has trade-offs (50s cold start, 90-day DB limit) but works for development stage
+- **Next.js API Route proxy pattern** — browser → Vercel `/api/chat` → Render backend. Eliminates CORS configuration and simplifies cookie/auth token passing
+
+### Learnings
+
+- Render web service names are globally unique — `linguarag-backend` was already taken but eventually resolved
+- Claude Max subscription API credits are separate from Anthropic API credits — had to purchase $5 API credits separately for the backend
 
 ---
 

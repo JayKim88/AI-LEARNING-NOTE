@@ -1,11 +1,11 @@
 ---
 title: "2026-03-17 Session Log"
 date: 2026-03-17
-description: "LinguaRAG: CJK pronunciation, text annotations on PDF, highlight performance, translation with Claude Haiku, Google One Tap login"
+description: "LinguaRAG: CJK pronunciation, text annotations on PDF, native PDF selection, server-side vocabulary pagination, translation with Claude Haiku, Google One Tap login"
 tags: ["lingua-rag"]
 ---
 
-## CJK Pronunciation & Furigana
+## lingua-rag
 
 > Note panel UX improvements, pronunciation practice bug fixes, CJK word splitting, Chinese pinyin matching, Japanese furigana via backend morphological analysis
 
@@ -91,3 +91,40 @@ The highlight overlay effect used `document.querySelectorAll("mark.note-highligh
 - **Prompt version in cache key** — cleaner than TTL expiration. Improving the prompt automatically invalidates all stale cached translations
 - **Guest = MyMemory, logged-in = Claude** — avoids API cost for unauthenticated users
 - **Words cached in DB, sentences not** — words have high cross-user reuse value, sentences are too context-specific
+
+---
+
+## Native PDF Selection & TTS Cleanup
+
+> Replaced ~400 lines of custom selection code with native browser selection
+
+### What I Did
+
+- **Removed custom selection system** — deleted `computeRangeRects`, `ensureTextContent`, `textContentCache`, `getCaretRange`, custom overlay divs. pdf.js text layer already handles selection natively; the custom `caretRangeFromPoint` logic was causing DOM-order vs visual-order mismatch bugs
+- **`sel.toString()` over `extractTextFromRange`** — the TreeWalker-based extraction followed DOM order (not visual order), capturing wrong text on multi-line drag selections
+- **Popup repositioning fix** — added `popupElRef` guard in `handleMouseUp` to skip selection logic when clicking popup buttons (previously repositioned the popup on every click)
+- **Removed TTS word-by-word highlight** — deleted `spokenWordIndex`, `ttsTimersRef`, `charWeights` timing logic. The timing-based estimation was inaccurate; clean word chips UI is sufficient
+
+### Learnings
+
+- pdf.js text layer renders spans in DOM order which may differ from visual (reading) order on complex layouts. Native browser selection handles this correctly; custom code cannot without reimplementing the rendering engine's layout logic
+
+---
+
+## Server-Side Vocabulary Pagination
+
+> Rewrote vocabulary page with server-side pagination, persistent filters, and multiple code quality fixes
+
+### What I Did
+
+- **Server-side pagination** — backend `list_all_for_user` rewritten with offset/limit/search/language/sort_by params. Frontend sends `searchParams` to backend instead of fetching all and filtering client-side
+- **Per-language localStorage persistence** — page size, page number, language filter, and sort order are all saved per-language in localStorage. Restored on browser reload, reset to defaults on SPA re-entry
+- **Reload vs re-entry detection** — module-level `hasBeenMounted` flag + `isPageReload()` (Performance Navigation API) distinguishes browser refresh from SPA navigation
+- **Fetch race condition fix** — version counter (`fetchIdRef`) ignores stale responses when language switch triggers two rapid fetches
+- **Auto-save on page viewer close** — replaced `window.confirm` with `pageViewerSaveRef` callback pattern
+- **Code quality fixes** — Pydantic `Field(ge=0, le=3)` validation, authorization on check update, `toLocaleLowerCase()` for i18n-safe comparison, silent errors → toast notifications
+
+### Key Decisions
+
+- **Module-level `hasBeenMounted` over Performance API alone** — `performance.getEntriesByType("navigation")` persists for the entire page lifecycle; after one reload, all subsequent SPA navigations still show `type="reload"`
+- **Version counter over AbortController** — simpler pattern for ignoring stale fetch responses; `fetchIdRef.current++` invalidates in-flight requests without aborting them

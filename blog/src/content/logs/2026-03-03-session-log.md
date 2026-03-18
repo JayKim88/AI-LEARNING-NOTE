@@ -101,6 +101,14 @@ tags: ["business-avengers", "lingua-rag"]
 - **`<strong>` = 의미적 독일어 마커**: Bold는 단순 스타일이 아니라 TTS 추출 메커니즘. LLM 준수율 개선이 근본 해결책
 - **`getText()` Latin extraction**: 이 앱 컨텍스트에서 Latin 문자 = 독일어 (고신뢰). `<strong>` 1순위 + Latin 추출 fallback 구조 유지
 
+**Sound Settings & Notes/Memo Feature (Session 3)**
+- refactor(tts): simplified `useTTS` — removed pitch, voice selection; single Google Deutsch voice, auto-selected by `PREFERRED_VOICE_NAMES` priority
+- feat(sound-modal): moved sound settings from user menu popover to centered modal with draft state pattern (X discards, Save commits to localStorage)
+- feat(resize): chat panel drag handle double-click resets width to 560px
+- feat(notes): full backend — `notes` table, `NoteRepository` with CRUD, `notes.py` router (`GET/POST/DELETE /api/notes`)
+- feat(notes): full frontend — `lib/notes.ts` API helpers, Next.js proxy routes, "Memo" button in InputBar, memo write modal, Summary/Memo tabs in notes overlay
+- feat(notes): ChatPanel overhaul — "Saved Summaries" renamed to "Notes" with combined badge (summaries + memos)
+
 ### 다음
 
 - [ ] User Feedback UI — 응답 하단 👍/👎 버튼 + `message_feedback` DB 테이블 (v0.3 Phase 2)

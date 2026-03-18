@@ -120,6 +120,39 @@ tags: ["wrap-up", "blog-logs-activity", "lingua-rag", "competitive-agents"]
 - **Session Mode Pooler**: Supabase direct connection is IPv6-only → use Session Pooler (5432) compatible with both Render and macOS
 - **Removed session cookie entirely**: `lingua_session` httponly cookie → JWT Bearer. Simultaneously resolved OQ-1 (expiry) and OQ-6 (multi-device)
 
+**UX Stabilization + Stream Persistence**
+- fix(frontend): unified session cookie name `session_id` → `lingua_session` across 3 proxy locations
+- feat(frontend): restructured onboarding routing (`/` level select → `/setup` → `/chat?unit=&level=`)
+- feat(frontend): `useChat` `generationRef` — orphan stream handling on unit switch. Drains the stream without aborting so the backend can persist the assistant message to DB
+- feat(frontend): persistent ChatPanel via `display:none` — preserves stream state and React state on unit switch, resumes real-time streaming when user returns
+- feat(frontend): sidebar drag-to-resize (160px–480px range, mousedown/move/up events, `user-select: none` during drag)
+- fix(backend): `MAX_TOKENS` 1024 → 2048 to prevent truncation of long grammar explanations
+- feat(frontend): answer copy button — copy icon on hover with 1.5s "Copied" feedback
+
+**v0.2 RAG: PDF Indexing + Vector Search**
+- feat(rag): `scripts/index_pdf.py` — PDF extraction via `pdftotext` (subprocess), 204 pages → 250 chunks
+- fix(rag): fixed 2 infinite loop bugs in `chunk_text()` that caused 50GB memory usage / exit 137
+- feat(rag): generated embeddings with OpenAI `text-embedding-3-small`, inserted into Supabase `document_chunks`
+- fix(rag): `max_distance` 0.5 → 0.7 (chunks contaminated with copyright text pushed distances to 0.61–0.63)
+- chore(rag): skipped ivfflat index — sequential scan is faster than index for 250 rows
+
+**RAG Indexing Quality Improvement**
+- fix(rag): rewrote Korean unit header regex patterns for 100% detection accuracy
+- fix(rag): `LESSON_START_PAGE=10` (skip TOC), `LESSON_END_PAGE=178` (exclude appendix)
+- fix(rag): `MAX_UNIT_STEP=5` monotonic guard — prevents page numbers from being falsely detected as unit numbers
+- fix(rag): copyright watermark line filter ("License Number", "Zusammen A1", "독독독 독일어")
+- feat(data): full replacement of all 56 unit titles to match actual textbook content
+- chore(rag): re-indexed 244 → 186 chunks (removed 58 appendix noise chunks)
+
+### Key Decisions
+
+- **Chose Supabase Auth**: integrates DB + Auth on the same platform — no additional service needed
+- **JWKS/ES256**: new Supabase projects use ES256 instead of HS256. Removed `SUPABASE_JWT_SECRET`, configured JWKS via `SUPABASE_URL`
+- **Session Mode Pooler**: Supabase direct connection is IPv6-only → use Session Pooler (5432)
+- **Persistent Panel via `display:none`**: simpler and more effective than a stream registry. Preserves both React state and in-flight fetch
+- **pdftotext (CLI) for PDF extraction**: pdfplumber/pypdf both consumed 50GB memory due to the chunk_text bug. pdftotext uses per-page subprocess calls to minimize Python heap
+- **ivfflat index unnecessary**: pgvector sequential scan is faster for 250 rows. Revisit at 10K+ rows
+
 ### Next
 
 - [ ] Production E2E verification — confirm Render redeployment, Google login → chat → multi-device history sharing
