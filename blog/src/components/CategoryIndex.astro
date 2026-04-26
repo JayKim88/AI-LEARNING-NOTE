@@ -1,0 +1,51 @@
+---
+import PostCard from '@components/PostCard.astro';
+import type { Post } from '@utils/posts';
+
+interface Props {
+  title: string;
+  subtitle: string;
+  posts: Post[];
+}
+
+const { title, subtitle, posts } = Astro.props;
+---
+
+<h1>{title}</h1>
+<p class="subtitle">{subtitle}</p>
+
+{posts.length === 0 ? (
+  <p class="empty">No posts yet.</p>
+) : (
+  posts.map((post) => (
+    <PostCard
+      title={post.data.title}
+      date={post.data.date}
+      description={post.data.description}
+      category={post.collection}
+      tags={post.data.tags}
+      slug={post.slug}
+      lang={post.data.lang}
+    />
+  ))
+)}
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .empty {
+    color: var(--color-text-muted);
+    text-align: center;
+    padding: 3rem 0;
+  }
+</style>

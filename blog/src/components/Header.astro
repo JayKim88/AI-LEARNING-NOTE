@@ -4,11 +4,11 @@ const currentPath = Astro.url.pathname;
 
 const navItems = [
   { label: 'Home', href: base },
-  { label: 'Digests', href: `${base}digests/` },
+  { label: 'Backend', href: `${base}backend/` },
   { label: 'Learnings', href: `${base}learnings/` },
   { label: 'Logs', href: `${base}logs/` },
   { label: 'Plugins', href: `${base}plugins/` },
-  { label: 'Tags', href: `${base}tags/` },
+  // { label: 'Tags', href: `${base}tags/` },
 ];
 
 function isActive(href: string): boolean {
@@ -41,7 +41,8 @@ function isActive(href: string): boolean {
         <kbd id="search-kbd" class="search-kbd"></kbd>
       </button>
       <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode" type="button">
-        <span id="theme-icon"></span>
+        <span class="icon-light" aria-hidden="true">🌙</span>
+        <span class="icon-dark" aria-hidden="true">☀️</span>
       </button>
     </div>
   </nav>
@@ -59,7 +60,6 @@ function isActive(href: string): boolean {
 
   // Theme toggle
   const toggle = document.getElementById('theme-toggle')!;
-  const icon = document.getElementById('theme-icon')!;
   const html = document.documentElement;
 
   function getTheme(): string {
@@ -70,15 +70,11 @@ function isActive(href: string): boolean {
   function applyTheme(theme: string) {
     html.setAttribute('data-theme', theme);
     localStorage.setItem('theme', theme);
-    icon.textContent = theme === 'dark' ? '☀️' : '🌙';
   }
 
   toggle.addEventListener('click', () => {
     applyTheme(getTheme() === 'dark' ? 'light' : 'dark');
   });
-
-  // Initialize icon on load
-  icon.textContent = getTheme() === 'dark' ? '☀️' : '🌙';
 </script>
 
 <style>
@@ -151,6 +147,17 @@ function isActive(href: string): boolean {
   .theme-toggle:hover {
     background: var(--color-bg-muted);
     border-color: var(--color-text-muted);
+  }
+
+  /* Icon visibility — CSS handles this to avoid JS-driven flicker */
+  .icon-dark { display: none; }
+
+  :global([data-theme="dark"]) .icon-light { display: none; }
+  :global([data-theme="dark"]) .icon-dark  { display: inline; }
+
+  @media (prefers-color-scheme: dark) {
+    :global(:root:not([data-theme="light"])) .icon-light { display: none; }
+    :global(:root:not([data-theme="light"])) .icon-dark  { display: inline; }
   }
 
   .search-btn {

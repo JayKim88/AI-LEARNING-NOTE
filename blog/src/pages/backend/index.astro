@@ -1,0 +1,101 @@
+---
+import BaseLayout from '@layouts/BaseLayout.astro';
+import { getCollection, type CollectionEntry } from 'astro:content';
+
+const base = import.meta.env.BASE_URL;
+
+const entries = await getCollection('backend');
+
+function parseTitle(body: string | undefined, id: string): string {
+  const line = body?.split('\n').find(l => l.startsWith('# ')) ?? '';
+  return line.replace(/^#\s*\d+\.\s*/, '').trim() || id;
+}
+
+function urlSlug(id: string): string {
+  return id.replace('backend-interview-guide-en/', '');
+}
+
+function sectionNum(id: string): number {
+  if (id === 'backend-fullstack-learning-roadmap') return 0;
+  return parseInt(id.split('/')[1]?.split('-')[0] ?? '999');
+}
+
+type Section = { slug: string; num: number; title: string };
+
+const sections: Section[] = entries
+  .sort((a: CollectionEntry<'backend'>, b: CollectionEntry<'backend'>) => sectionNum(a.id) - sectionNum(b.id))
+  .map((entry: CollectionEntry<'backend'>) => ({
+    slug: urlSlug(entry.id),
+    num: sectionNum(entry.id),
+    title: parseTitle(entry.body, entry.id),
+  }));
+---
+
+<BaseLayout title="Backend Guide" description="Backend interview guide — 35 sections">
+  <h1>Backend Guide</h1>
+  <p class="subtitle">Backend interview concepts — {sections.length} sections</p>
+
+  <ul class="section-list">
+    {sections.map(({ slug, num, title }) => (
+      <li>
+        <a href={`${base}backend/${slug}/`} class="section-link">
+          <span class="num">{String(num).padStart(2, '0')}</span>
+          <span class="title">{title}</span>
+        </a>
+      </li>
+    ))}
+  </ul>
+</BaseLayout>
+
+<style>
+  h1 {
+    font-size: 2rem;
+    margin: 0 0 0.5rem;
+  }
+
+  .subtitle {
+    color: var(--color-text-muted);
+    margin: 0 0 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .section-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .section-link {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    text-decoration: none;
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .section-link:hover {
+    border-color: var(--color-primary);
+    background: var(--color-bg-muted);
+    color: var(--color-primary);
+  }
+
+  .num {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+    min-width: 1.8rem;
+  }
+
+  .title {
+    font-size: 0.95rem;
+  }
+</style>

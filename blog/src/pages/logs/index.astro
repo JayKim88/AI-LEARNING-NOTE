@@ -1,12 +1,9 @@
 ---
 import BaseLayout from '@layouts/BaseLayout.astro';
 import { getAllLogs } from '@utils/posts';
+import { formatDate } from '@utils/date';
 
 const logs = await getAllLogs();
-
-function formatDate(date: Date): string {
-  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-}
 ---
 
 <BaseLayout title="Logs" description="Daily session logs">

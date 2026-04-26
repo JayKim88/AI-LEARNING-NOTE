@@ -111,7 +111,9 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
     currentYear: number;
   };
 
-  const outer     = document.getElementById('cal-outer')!;
+  function init() {
+  const outer     = document.getElementById('cal-outer');
+  if (!outer) return;
   const graphEl   = document.getElementById('cal-graph')!;
   const yearSelEl = document.getElementById('year-selector')!;
   const tooltip   = document.getElementById('cal-tooltip')!;
@@ -409,6 +411,10 @@ const clientData = { yearsData, allMonths, dayMap, currentYear };
   renderCalendar(selectedYear);
   renderYearButtons();
   resetActivityForYear(selectedYear);
+  } // end init
+
+  init();
+  document.addEventListener('astro:page-load', init);
 </script>
 
 <style is:global>
